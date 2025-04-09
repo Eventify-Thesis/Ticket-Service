@@ -8,14 +8,14 @@ export const appConfig = registerAs("app", () => ({
   headerLanguage: "x-custom-lang",
 }));
 
-export const redisConfig = registerAs("redis", () => ({
-  host: process.env.REDIS_HOST || "localhost",
-  port: parseInt(process.env.REDIS_PORT, 10) || 6379,
-  password: process.env.REDIS_PASSWORD,
-  maxRetriesPerRequest: 3,
-  enableReadyCheck: true,
-  maxReconnectAttempts: 10,
-}));
+// export const redisConfig = registerAs("redis", () => ({
+//   host: process.env.REDIS_HOST || "localhost",
+//   port: parseInt(process.env.REDIS_PORT, 10) || 6379,
+//   password: process.env.REDIS_PASSWORD,
+//   maxRetriesPerRequest: 3,
+//   enableReadyCheck: true,
+//   maxReconnectAttempts: 10,
+// }));
 
 export const ticketConfig = registerAs("ticket", () => ({
   reservationTimeoutSeconds:
@@ -41,7 +41,7 @@ export const circuitBreakerConfig = registerAs("circuitBreaker", () => ({
 
 export default [
   appConfig,
-  redisConfig,
+  // redisConfig,
   ticketConfig,
   rateLimitConfig,
   circuitBreakerConfig,

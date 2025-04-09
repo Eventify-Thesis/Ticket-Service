@@ -8,9 +8,16 @@ export class RedisService implements OnModuleDestroy {
 
   constructor(private readonly configService: ConfigService) {
     this.client = new Redis({
-      host: this.configService.get<string>("REDIS_HOST", "localhost"),
+      host: this.configService.get<string>("REDIS_HOST", "172.17.0.1"), // Default Docker bridge network IP
       port: this.configService.get<number>("REDIS_PORT", 6379),
-      retryStrategy: (times) => Math.min(times * 50, 2000),
+      connectTimeout: 10000,
+      enableOfflineQueue: false,
+      maxRetriesPerRequest: 3,
+      retryStrategy: (times) => {
+        const delay = Math.min(times * 50, 2000);
+        console.log(`Retrying Redis connection in ${delay}ms...`);
+        return delay;
+      },
     });
 
     this.client.on("error", (error) => {
@@ -19,6 +26,14 @@ export class RedisService implements OnModuleDestroy {
 
     this.client.on("connect", () => {
       console.log("Successfully connected to Redis");
+    });
+
+    this.client.on("ready", () => {
+      console.log("Redis client ready and connected");
+    });
+
+    this.client.on("close", () => {
+      console.log("Redis connection closed");
     });
   }
 
@@ -35,6 +50,14 @@ export class RedisService implements OnModuleDestroy {
       return this.client.set(key, value, "EX", ttl);
     }
     return this.client.set(key, value);
+  }
+  async setIfNotExists(
+    key: string,
+    value: string,
+    ttlSeconds: number
+  ): Promise<boolean> {
+    const result = await this.client.set(key, value, "EX", ttlSeconds, "NX");
+    return result === "OK";
   }
 
   async get(key: string): Promise<string | null> {

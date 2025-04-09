@@ -7,7 +7,7 @@ export class SeatController {
   constructor(private readonly seatService: SeatService) {}
 
   @MessagePattern("getShowSeatAvailability")
-  async getShowSeatAvailability(@Param("showId") showId: string) {
+  async getShowSeatAvailability(showId: string) {
     console.log(showId);
     return this.seatService.getShowSeatAvailability(showId);
   }

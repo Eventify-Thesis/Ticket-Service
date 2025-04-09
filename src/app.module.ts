@@ -52,25 +52,6 @@ import { TypeOrmModule } from "@nestjs/typeorm";
     // Redis
     RedisModule,
 
-    // Bull Queue
-    BullModule.forRootAsync({
-      imports: [ConfigModule],
-      inject: [ConfigService],
-      useFactory: async (config: ConfigService) => ({
-        redis: {
-          standalone: {
-            nodes: [
-              {
-                host: config.get<string>("REDIS_HOST", "localhost"),
-                port: config.get<number>("REDIS_PORT", 6379),
-              },
-            ],
-          },
-          maxRetriesPerRequest: config.get("REDIS_MAX_RETRIES_PER_REQUEST", 3),
-        },
-      }),
-    }),
-
     // Rate Limiting
     ThrottlerModule.forRootAsync({
       imports: [ConfigModule],
