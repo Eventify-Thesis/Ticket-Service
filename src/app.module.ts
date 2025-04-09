@@ -1,24 +1,20 @@
 import { Module } from "@nestjs/common";
 import { ConfigModule, ConfigService } from "@nestjs/config";
-import { MongooseModule } from "@nestjs/mongoose";
 import { BullModule } from "@nestjs/bull";
-import { ThrottlerModule } from "@nestjs/throttler";
 import { ScheduleModule } from "@nestjs/schedule";
 import { LoggerModule } from "nestjs-pino";
-import { TerminusModule } from "@nestjs/terminus";
-import { RedisModule } from "./shared/redis/redis.module";
+import { ThrottlerModule } from "@nestjs/throttler";
 import { HealthModule } from "./health/health.module";
-import { TicketModule } from "./ticket/ticket.module";
-import configuration from "./config/configuration";
-import { CircuitBreakerModule } from "./shared/circuit-breaker/circuit-breaker.module";
-import { MetricsModule } from "./shared/metrics/metrics.module";
+import { RedisModule } from "./shared/redis/redis.module";
+import { TerminusModule } from "@nestjs/terminus";
+import { SeatModule } from "./seat/seat.module";
+import { TypeOrmModule } from "@nestjs/typeorm";
 
 @Module({
   imports: [
     // Configuration
     ConfigModule.forRoot({
       isGlobal: true,
-      load: configuration,
     }),
 
     // Logger
@@ -37,32 +33,24 @@ import { MetricsModule } from "./shared/metrics/metrics.module";
       }),
     }),
 
-    // MongoDB
-    MongooseModule.forRootAsync({
+    // TypeORM
+    TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
-      inject: [ConfigService],
-      useFactory: async (config: ConfigService) => ({
-        uri: config.get<string>("database.uri"),
-        ...config.get("database.options"),
+      useFactory: (configService: ConfigService) => ({
+        type: "postgres",
+        host: configService.get("DATABASE_HOST"),
+        port: configService.get("DATABASE_PORT"),
+        username: configService.get("DATABASE_USERNAME"),
+        password: configService.get("DATABASE_PASSWORD"),
+        database: configService.get("DATABASE_NAME"),
+        entities: [__dirname + "/**/*.entity{.ts,.js}"],
+        synchronize: configService.get("DATABASE_SYNCHRONIZE") === "true",
       }),
+      inject: [ConfigService],
     }),
 
     // Redis
     RedisModule,
-
-    // Bull Queue
-    BullModule.forRootAsync({
-      imports: [ConfigModule],
-      inject: [ConfigService],
-      useFactory: async (config: ConfigService) => ({
-        redis: {
-          host: config.get("redis.host"),
-          port: config.get("redis.port"),
-          password: config.get("redis.password"),
-          maxRetriesPerRequest: config.get("redis.maxRetriesPerRequest"),
-        },
-      }),
-    }),
 
     // Rate Limiting
     ThrottlerModule.forRootAsync({
@@ -81,14 +69,7 @@ import { MetricsModule } from "./shared/metrics/metrics.module";
     TerminusModule,
     HealthModule,
 
-    // Circuit Breaker
-    CircuitBreakerModule,
-
-    // Metrics
-    MetricsModule,
-
-    // Feature Modules
-    TicketModule,
+    SeatModule,
   ],
 })
 export class AppModule {}

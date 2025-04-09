@@ -7,22 +7,17 @@ import * as compression from "compression";
 import { Logger as PinoLogger } from "nestjs-pino";
 import rateLimit from "express-rate-limit";
 import { AppModule } from "./app.module";
+import { MicroserviceOptions, Transport } from "@nestjs/microservices";
 
 async function bootstrap() {
   // Create the application instance with specific configurations
-  const app = await NestFactory.create(AppModule, {
-    logger: ["error", "warn", "log", "debug", "verbose"],
-    bufferLogs: true,
-  });
+  const app = await NestFactory.create(AppModule);
 
   const configService = app.get(ConfigService);
   const logger = new Logger("Bootstrap");
 
   // Use Pino Logger
   app.useLogger(app.get(PinoLogger));
-
-  // Global prefix
-  app.setGlobalPrefix(configService.get("app.apiPrefix"));
 
   // Security middleware
   app.use(helmet());
@@ -67,14 +62,15 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup("api/docs", app, document);
 
-  // Start the server
-  const port = configService.get("app.port");
-  await app.listen(port);
+  app.connectMicroservice<MicroserviceOptions>({
+    transport: Transport.TCP,
+    options: {
+      host: "127.0.0.1",
+      port: 8082,
+    },
+  });
 
-  logger.log(`Application is running on: ${await app.getUrl()}`);
-  logger.log(
-    `Swagger documentation is available at: ${await app.getUrl()}/api/docs`
-  );
+  await app.startAllMicroservices();
 }
 
 bootstrap().catch((error) => {
