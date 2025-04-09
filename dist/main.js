@@ -9,15 +9,12 @@ const compression = require("compression");
 const nestjs_pino_1 = require("nestjs-pino");
 const express_rate_limit_1 = require("express-rate-limit");
 const app_module_1 = require("./app.module");
+const microservices_1 = require("@nestjs/microservices");
 async function bootstrap() {
-    const app = await core_1.NestFactory.create(app_module_1.AppModule, {
-        logger: ["error", "warn", "log", "debug", "verbose"],
-        bufferLogs: true,
-    });
+    const app = await core_1.NestFactory.create(app_module_1.AppModule);
     const configService = app.get(config_1.ConfigService);
     const logger = new common_1.Logger("Bootstrap");
     app.useLogger(app.get(nestjs_pino_1.Logger));
-    app.setGlobalPrefix(configService.get("app.apiPrefix"));
     app.use((0, helmet_1.default)());
     app.use(compression());
     app.use((0, express_rate_limit_1.default)({
@@ -45,10 +42,14 @@ async function bootstrap() {
         .build();
     const document = swagger_1.SwaggerModule.createDocument(app, config);
     swagger_1.SwaggerModule.setup("api/docs", app, document);
-    const port = configService.get("app.port");
-    await app.listen(port);
-    logger.log(`Application is running on: ${await app.getUrl()}`);
-    logger.log(`Swagger documentation is available at: ${await app.getUrl()}/api/docs`);
+    app.connectMicroservice({
+        transport: microservices_1.Transport.TCP,
+        options: {
+            host: "127.0.0.1",
+            port: 8082,
+        },
+    });
+    await app.startAllMicroservices();
 }
 bootstrap().catch((error) => {
     new common_1.Logger("Bootstrap").error("Failed to start application", error);

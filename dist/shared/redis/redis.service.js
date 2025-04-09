@@ -17,15 +17,15 @@ let RedisService = class RedisService {
     constructor(configService) {
         this.configService = configService;
         this.client = new ioredis_1.default({
-            host: this.configService.get('REDIS_HOST', 'localhost'),
-            port: this.configService.get('REDIS_PORT', 6379),
+            host: this.configService.get("REDIS_HOST", "localhost"),
+            port: this.configService.get("REDIS_PORT", 6379),
             retryStrategy: (times) => Math.min(times * 50, 2000),
         });
-        this.client.on('error', (error) => {
-            console.error('Redis Client Error:', error);
+        this.client.on("error", (error) => {
+            console.error("Redis Client Error:", error);
         });
-        this.client.on('connect', () => {
-            console.log('Successfully connected to Redis');
+        this.client.on("connect", () => {
+            console.log("Successfully connected to Redis");
         });
     }
     async onModuleDestroy() {
@@ -36,7 +36,7 @@ let RedisService = class RedisService {
     }
     async set(key, value, ttl) {
         if (ttl) {
-            return this.client.set(key, value, 'EX', ttl);
+            return this.client.set(key, value, "EX", ttl);
         }
         return this.client.set(key, value);
     }
@@ -141,8 +141,8 @@ let RedisService = class RedisService {
     }
     async setWithLock(key, value, ttl) {
         try {
-            const result = await this.client.set(key, value, 'EX', ttl, 'NX');
-            return result === 'OK';
+            const result = await this.client.set(key, value, "EX", ttl, "NX");
+            return result === "OK";
         }
         catch (error) {
             console.error(`Error setting key ${key} with lock:`, error);

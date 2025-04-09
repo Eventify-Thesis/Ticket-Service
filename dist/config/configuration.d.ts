@@ -11,29 +11,6 @@ export declare const appConfig: (() => {
     fallbackLanguage: string;
     headerLanguage: string;
 }>;
-export declare const databaseConfig: (() => {
-    uri: string;
-    options: {
-        useNewUrlParser: boolean;
-        useUnifiedTopology: boolean;
-        maxPoolSize: number;
-        serverSelectionTimeoutMS: number;
-        socketTimeoutMS: number;
-        retryWrites: boolean;
-        retryReads: boolean;
-    };
-}) & import("@nestjs/config").ConfigFactoryKeyHost<{
-    uri: string;
-    options: {
-        useNewUrlParser: boolean;
-        useUnifiedTopology: boolean;
-        maxPoolSize: number;
-        serverSelectionTimeoutMS: number;
-        socketTimeoutMS: number;
-        retryWrites: boolean;
-        retryReads: boolean;
-    };
-}>;
 export declare const redisConfig: (() => {
     host: string;
     port: number;
@@ -90,28 +67,6 @@ declare const _default: (((() => {
     apiPrefix: string;
     fallbackLanguage: string;
     headerLanguage: string;
-}>) | ((() => {
-    uri: string;
-    options: {
-        useNewUrlParser: boolean;
-        useUnifiedTopology: boolean;
-        maxPoolSize: number;
-        serverSelectionTimeoutMS: number;
-        socketTimeoutMS: number;
-        retryWrites: boolean;
-        retryReads: boolean;
-    };
-}) & import("@nestjs/config").ConfigFactoryKeyHost<{
-    uri: string;
-    options: {
-        useNewUrlParser: boolean;
-        useUnifiedTopology: boolean;
-        maxPoolSize: number;
-        serverSelectionTimeoutMS: number;
-        socketTimeoutMS: number;
-        retryWrites: boolean;
-        retryReads: boolean;
-    };
 }>) | ((() => {
     host: string;
     port: number;

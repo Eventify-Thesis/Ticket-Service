@@ -1,13 +1,13 @@
-import { OnModuleDestroy } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import Redis from 'ioredis';
+import { OnModuleDestroy } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import Redis from "ioredis";
 export declare class RedisService implements OnModuleDestroy {
     private readonly configService;
     private readonly client;
     constructor(configService: ConfigService);
     onModuleDestroy(): Promise<void>;
     getClient(): Redis;
-    set(key: string, value: string, ttl?: number): Promise<'OK'>;
+    set(key: string, value: string, ttl?: number): Promise<"OK">;
     get(key: string): Promise<string | null>;
     del(key: string): Promise<number>;
     exists(key: string): Promise<number>;

@@ -1,6 +1,6 @@
-import { Injectable, OnModuleDestroy } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import Redis from 'ioredis';
+import { Injectable, OnModuleDestroy } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import Redis from "ioredis";
 
 @Injectable()
 export class RedisService implements OnModuleDestroy {
@@ -8,17 +8,17 @@ export class RedisService implements OnModuleDestroy {
 
   constructor(private readonly configService: ConfigService) {
     this.client = new Redis({
-      host: this.configService.get<string>('REDIS_HOST', 'localhost'),
-      port: this.configService.get<number>('REDIS_PORT', 6379),
+      host: this.configService.get<string>("REDIS_HOST", "localhost"),
+      port: this.configService.get<number>("REDIS_PORT", 6379),
       retryStrategy: (times) => Math.min(times * 50, 2000),
     });
 
-    this.client.on('error', (error) => {
-      console.error('Redis Client Error:', error);
+    this.client.on("error", (error) => {
+      console.error("Redis Client Error:", error);
     });
 
-    this.client.on('connect', () => {
-      console.log('Successfully connected to Redis');
+    this.client.on("connect", () => {
+      console.log("Successfully connected to Redis");
     });
   }
 
@@ -30,9 +30,9 @@ export class RedisService implements OnModuleDestroy {
     return this.client;
   }
 
-  async set(key: string, value: string, ttl?: number): Promise<'OK'> {
+  async set(key: string, value: string, ttl?: number): Promise<"OK"> {
     if (ttl) {
-      return this.client.set(key, value, 'EX', ttl);
+      return this.client.set(key, value, "EX", ttl);
     }
     return this.client.set(key, value);
   }
@@ -122,7 +122,10 @@ export class RedisService implements OnModuleDestroy {
     try {
       return await this.client.hdel(key, field);
     } catch (error) {
-      console.error(`Error deleting hash field ${field} for key ${key}:`, error);
+      console.error(
+        `Error deleting hash field ${field} for key ${key}:`,
+        error
+      );
       throw error;
     }
   }
@@ -138,8 +141,8 @@ export class RedisService implements OnModuleDestroy {
 
   async setWithLock(key: string, value: string, ttl: number): Promise<boolean> {
     try {
-      const result = await this.client.set(key, value, 'EX', ttl, 'NX');
-      return result === 'OK';
+      const result = await this.client.set(key, value, "EX", ttl, "NX");
+      return result === "OK";
     } catch (error) {
       console.error(`Error setting key ${key} with lock:`, error);
       throw error;

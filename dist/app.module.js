@@ -9,18 +9,15 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.AppModule = void 0;
 const common_1 = require("@nestjs/common");
 const config_1 = require("@nestjs/config");
-const mongoose_1 = require("@nestjs/mongoose");
 const bull_1 = require("@nestjs/bull");
-const throttler_1 = require("@nestjs/throttler");
 const schedule_1 = require("@nestjs/schedule");
 const nestjs_pino_1 = require("nestjs-pino");
-const terminus_1 = require("@nestjs/terminus");
-const redis_module_1 = require("./shared/redis/redis.module");
+const throttler_1 = require("@nestjs/throttler");
 const health_module_1 = require("./health/health.module");
-const ticket_module_1 = require("./ticket/ticket.module");
-const configuration_1 = require("./config/configuration");
-const circuit_breaker_module_1 = require("./shared/circuit-breaker/circuit-breaker.module");
-const metrics_module_1 = require("./shared/metrics/metrics.module");
+const redis_module_1 = require("./shared/redis/redis.module");
+const terminus_1 = require("@nestjs/terminus");
+const seat_module_1 = require("./seat/seat.module");
+const typeorm_1 = require("@nestjs/typeorm");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -29,7 +26,6 @@ exports.AppModule = AppModule = __decorate([
         imports: [
             config_1.ConfigModule.forRoot({
                 isGlobal: true,
-                load: configuration_1.default,
             }),
             nestjs_pino_1.LoggerModule.forRootAsync({
                 imports: [config_1.ConfigModule],
@@ -43,13 +39,19 @@ exports.AppModule = AppModule = __decorate([
                     },
                 }),
             }),
-            mongoose_1.MongooseModule.forRootAsync({
+            typeorm_1.TypeOrmModule.forRootAsync({
                 imports: [config_1.ConfigModule],
-                inject: [config_1.ConfigService],
-                useFactory: async (config) => ({
-                    uri: config.get("database.uri"),
-                    ...config.get("database.options"),
+                useFactory: (configService) => ({
+                    type: "postgres",
+                    host: configService.get("DATABASE_HOST"),
+                    port: configService.get("DATABASE_PORT"),
+                    username: configService.get("DATABASE_USERNAME"),
+                    password: configService.get("DATABASE_PASSWORD"),
+                    database: configService.get("DATABASE_NAME"),
+                    entities: [__dirname + "/**/*.entity{.ts,.js}"],
+                    synchronize: configService.get("DATABASE_SYNCHRONIZE") === "true",
                 }),
+                inject: [config_1.ConfigService],
             }),
             redis_module_1.RedisModule,
             bull_1.BullModule.forRootAsync({
@@ -57,10 +59,15 @@ exports.AppModule = AppModule = __decorate([
                 inject: [config_1.ConfigService],
                 useFactory: async (config) => ({
                     redis: {
-                        host: config.get("redis.host"),
-                        port: config.get("redis.port"),
-                        password: config.get("redis.password"),
-                        maxRetriesPerRequest: config.get("redis.maxRetriesPerRequest"),
+                        standalone: {
+                            nodes: [
+                                {
+                                    host: config.get("REDIS_HOST", "localhost"),
+                                    port: config.get("REDIS_PORT", 6379),
+                                },
+                            ],
+                        },
+                        maxRetriesPerRequest: config.get("REDIS_MAX_RETRIES_PER_REQUEST", 3),
                     },
                 }),
             }),
@@ -75,9 +82,7 @@ exports.AppModule = AppModule = __decorate([
             schedule_1.ScheduleModule.forRoot(),
             terminus_1.TerminusModule,
             health_module_1.HealthModule,
-            circuit_breaker_module_1.CircuitBreakerModule,
-            metrics_module_1.MetricsModule,
-            ticket_module_1.TicketModule,
+            seat_module_1.SeatModule,
         ],
     })
 ], AppModule);

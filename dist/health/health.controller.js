@@ -13,17 +13,15 @@ exports.HealthController = void 0;
 const common_1 = require("@nestjs/common");
 const terminus_1 = require("@nestjs/terminus");
 let HealthController = class HealthController {
-    constructor(health, mongoose, memory, disk) {
+    constructor(health, memory, disk) {
         this.health = health;
-        this.mongoose = mongoose;
         this.memory = memory;
         this.disk = disk;
     }
     check() {
         return this.health.check([
-            () => this.mongoose.pingCheck('database'),
-            () => this.memory.checkHeap('memory_heap', 150 * 1024 * 1024),
-            () => this.disk.checkStorage('storage', { path: '/', thresholdPercent: 0.9 }),
+            () => this.memory.checkHeap("memory_heap", 150 * 1024 * 1024),
+            () => this.disk.checkStorage("storage", { path: "/", thresholdPercent: 0.9 }),
         ]);
     }
 };
@@ -36,9 +34,8 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], HealthController.prototype, "check", null);
 exports.HealthController = HealthController = __decorate([
-    (0, common_1.Controller)('health'),
+    (0, common_1.Controller)("health"),
     __metadata("design:paramtypes", [terminus_1.HealthCheckService,
-        terminus_1.MongooseHealthIndicator,
         terminus_1.MemoryHealthIndicator,
         terminus_1.DiskHealthIndicator])
 ], HealthController);
