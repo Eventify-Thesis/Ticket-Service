@@ -9,6 +9,7 @@ import { RedisModule } from "./shared/redis/redis.module";
 import { TerminusModule } from "@nestjs/terminus";
 import { SeatModule } from "./seat/seat.module";
 import { TypeOrmModule } from "@nestjs/typeorm";
+import { BookingsModule } from './bookings/bookings.module';
 
 @Module({
   imports: [
@@ -70,6 +71,8 @@ import { TypeOrmModule } from "@nestjs/typeorm";
     HealthModule,
 
     SeatModule,
+
+    BookingsModule,
   ],
 })
 export class AppModule {}
