@@ -123,6 +123,30 @@ export class RedisService implements OnModuleDestroy {
     }
   }
 
+  async incrBy(key: string, value: number): Promise<number> {
+    try {
+      return await this.client.incrby(key, value);
+    } catch (error) {
+      console.error(
+        `Error incrementing by value ${value} for key ${key}:`,
+        error
+      );
+      throw error;
+    }
+  }
+
+  async decrBy(key: string, value: number): Promise<number> {
+    try {
+      return await this.client.decrby(key, value);
+    } catch (error) {
+      console.error(
+        `Error decrementing by value ${value} for key ${key}:`,
+        error
+      );
+      throw error;
+    }
+  }
+
   async hset(key: string, field: string, value: string): Promise<number> {
     try {
       return await this.client.hset(key, field, value);
