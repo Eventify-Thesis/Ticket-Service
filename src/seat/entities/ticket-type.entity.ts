@@ -12,14 +12,14 @@ import { SeatCategoryMapping } from "./seat-category-mapping.entity";
 
 @Entity("ticket_types")
 export class TicketType {
-  @PrimaryGeneratedColumn("uuid")
-  id: string;
+  @PrimaryGeneratedColumn()
+  id: number;
 
   @Column({ name: "show_id" })
-  showId: string;
+  showId: number;
 
   @Column({ name: "event_id" })
-  eventId: string;
+  eventId: number;
 
   @Column()
   name: string;

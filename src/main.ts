@@ -12,6 +12,17 @@ import { MicroserviceOptions, Transport } from "@nestjs/microservices";
 async function bootstrap() {
   // Create the application instance with specific configurations
   const app = await NestFactory.create(AppModule);
+  app.init();
+
+  app.connectMicroservice<MicroserviceOptions>({
+    transport: Transport.TCP,
+    options: {
+      host: "127.0.0.1",
+      port: 8082,
+    },
+  });
+
+  await app.startAllMicroservices();
 
   const configService = app.get(ConfigService);
   const logger = new Logger("Bootstrap");
@@ -61,16 +72,6 @@ async function bootstrap() {
 
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup("api/docs", app, document);
-
-  app.connectMicroservice<MicroserviceOptions>({
-    transport: Transport.TCP,
-    options: {
-      host: "127.0.0.1",
-      port: 8082,
-    },
-  });
-
-  await app.startAllMicroservices();
 }
 
 bootstrap().catch((error) => {

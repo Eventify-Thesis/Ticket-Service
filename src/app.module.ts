@@ -71,8 +71,7 @@ import { BookingsModule } from './bookings/bookings.module';
     HealthModule,
 
     SeatModule,
-
     BookingsModule,
   ],
 })
-export class AppModule {}
+export class AppModule { }

@@ -11,23 +11,23 @@ import { TicketType } from "./ticket-type.entity";
 
 @Entity({ name: "seat_category_mappings" })
 export class SeatCategoryMapping {
-  @PrimaryGeneratedColumn("uuid")
-  id: string;
+  @PrimaryGeneratedColumn()
+  id: number;
 
-  @Column({ name: "seating_plan_id", type: "uuid" })
-  seatingPlanId: string;
+  @Column({ name: "seating_plan_id" })
+  seatingPlanId: number;
 
-  @Column({ name: "event_id", type: "uuid" })
-  eventId: string;
+  @Column({ name: "event_id" })
+  eventId: number;
 
-  @Column({ name: "show_id", type: "uuid" })
-  showId: string;
+  @Column({ name: "show_id" })
+  showId: number;
 
   @Column()
   category: string;
 
-  @Column({ name: "ticket_type_id", type: "uuid" })
-  ticketTypeId: string;
+  @Column({ name: "ticket_type_id" })
+  ticketTypeId: number;
 
   @CreateDateColumn({ name: "created_at" })
   createdAt: Date;

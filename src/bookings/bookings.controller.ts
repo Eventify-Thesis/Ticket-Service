@@ -8,26 +8,67 @@ import {
   Delete,
 } from "@nestjs/common";
 import { BookingsService } from "./bookings.service";
-import { MessagePattern } from "@nestjs/microservices";
+import { MessagePattern, Payload } from "@nestjs/microservices";
 import { SubmitTicketInfoDto } from "./dto/submit-ticket-info.dto";
+import { QuestionAnswerDto } from "./dto/question-answer.dto";
 
-@Controller("bookings")
+@Controller()
 export class BookingsController {
-  constructor(private readonly bookingsService: BookingsService) {}
+  constructor(private readonly bookingsService: BookingsService) { }
 
-  @MessagePattern("booking.created")
-  @Post()
-  create(@Body() submitTicketInfoDto: SubmitTicketInfoDto) {
-    return this.bookingsService.create(submitTicketInfoDto);
+  @MessagePattern("submitTicketInfo")
+  async create(@Payload() submitTicketInfoDto: SubmitTicketInfoDto) {
+    try {
+      return await this.bookingsService.create(submitTicketInfoDto);
+    } catch (error) {
+      return {
+        error: error.toString(),
+      }
+    }
   }
 
-  @Post(":bookingCode/confirm")
-  confirmPayment(@Param("bookingCode") bookingCode: string) {
-    return this.bookingsService.confirmPayment(bookingCode);
+  @MessagePattern("getBookingStatus")
+  async getBookingStatus(@Payload() booking: { showId: number, bookingCode: string }) {
+    try {
+      return await this.bookingsService.getBookingStatus(booking.showId, booking.bookingCode);
+    } catch (error) {
+      return {
+        error: error.toString(),
+      }
+    }
   }
 
-  @Post(":bookingCode/expire")
-  expireBooking(@Param("bookingCode") bookingCode: string) {
-    return this.bookingsService.expireBooking(bookingCode);
+  @MessagePattern("cancelBooking")
+  async cancelBooking(@Payload() booking: { showId: number, bookingCode: string }) {
+    try {
+      return await this.bookingsService.cancelBooking(booking.showId, booking.bookingCode);
+    } catch (error) {
+      return {
+        error: error.toString(),
+      }
+    }
+  }
+
+  @MessagePattern("getFormAnswers")
+  async getFormAnswers(@Payload() booking: { showId: number, bookingId: string }) {
+    try {
+      return await this.bookingsService.getFormAnswers(booking.showId, booking.bookingId);
+    } catch (error) {
+      return {
+        error: error.toString(),
+      }
+    }
+  }
+
+  @MessagePattern("updateAnswers")
+  async updateAnswers(@Payload() questionAnswers: QuestionAnswerDto) {
+    try {
+      console.log(questionAnswers);
+      return await this.bookingsService.updateAnswers(questionAnswers);
+    } catch (error) {
+      return {
+        error: error.toString(),
+      }
+    }
   }
 }

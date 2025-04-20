@@ -4,11 +4,10 @@ import { MessagePattern } from "@nestjs/microservices";
 
 @Controller("seat")
 export class SeatController {
-  constructor(private readonly seatService: SeatService) {}
+  constructor(private readonly seatService: SeatService) { }
 
   @MessagePattern("getShowSeatAvailability")
-  async getShowSeatAvailability(showId: string) {
-    console.log(showId);
+  async getShowSeatAvailability(showId: number) {
     return this.seatService.getShowSeatAvailability(showId);
   }
 }
