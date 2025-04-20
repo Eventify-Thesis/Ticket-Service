@@ -25,4 +25,11 @@ export const MESSAGE = {
     code: HttpStatus.NOT_FOUND,
     httpStatus: HttpStatus.NOT_FOUND,
   },
+
+  BOOKING_ANSWERS_NOT_FOUND: {
+    error: "BOOKING_ANSWERS_NOT_FOUND",
+    message: "Booking answers not found",
+    code: HttpStatus.NOT_FOUND,
+    httpStatus: HttpStatus.NOT_FOUND,
+  },
 };

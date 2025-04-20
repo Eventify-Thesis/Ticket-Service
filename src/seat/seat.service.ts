@@ -1,30 +1,32 @@
-import { Injectable } from "@nestjs/common";
+import { Inject, Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { Seat, SeatStatus } from "./entities/seat.entity";
 import { RedisService } from "../shared/redis/redis.service";
-import { Logger } from "@nestjs/common";
 import { TicketType } from "./entities/ticket-type.entity";
 import { SeatCategoryMapping } from "./entities/seat-category-mapping.entity";
+import { ClientProxy } from "@nestjs/microservices";
+import { OnEvent } from "@nestjs/event-emitter";
 
 @Injectable()
 export class SeatService {
   private readonly logger = new Logger(SeatService.name);
   private readonly CACHE_TTL = 300; // 5 minutes
   private readonly LOCK_TTL = 300; // 5 minutes
+  private readonly SEAT_INFO_TTL = 300; // 5 minutes
 
   constructor(
     @InjectRepository(Seat)
     private readonly seatRepository: Repository<Seat>,
-    @InjectRepository(SeatCategoryMapping)
-    private readonly seatCategoryMappingRepository: Repository<SeatCategoryMapping>,
     @InjectRepository(TicketType)
     private readonly ticketTypeRepository: Repository<TicketType>,
+    @InjectRepository(SeatCategoryMapping)
+    private readonly seatCategoryMappingRepository: Repository<SeatCategoryMapping>,
+    private readonly redisService: RedisService,
+    @Inject('GATEWAY_SERVICE') private gatewayClient: ClientProxy,
+  ) { }
 
-    private readonly redisService: RedisService
-  ) {}
-
-  private getShowSeatsCacheKey(showId: string): string {
+  private getShowSeatsCacheKey(showId: number): string {
     return `seats:show:${showId}:availability`;
   }
 
@@ -32,7 +34,11 @@ export class SeatService {
     return `seat:lock:${seatId}`;
   }
 
-  async getShowSeatAvailability(showId: string) {
+  private getSeatInfoKey(seatId: string): string {
+    return `seat:info:${seatId}`;
+  }
+
+  async getShowSeatAvailability(showId: number) {
     const cacheKey = this.getShowSeatsCacheKey(showId);
 
     try {
@@ -46,8 +52,13 @@ export class SeatService {
 
     const seats = await this.seatRepository.find({
       where: { showId, status: SeatStatus.AVAILABLE },
-      select: ["id"],
+      select: ["id", "rowLabel", "seatNumber"],
     });
+
+    for (const seat of seats) {
+      const seatInfoKey = this.getSeatInfoKey(seat.id);
+      await this.redisService.set(seatInfoKey, JSON.stringify(seat), this.SEAT_INFO_TTL);
+    }
 
     const ticketTypes = await this.ticketTypeRepository.find({
       where: { showId },
@@ -86,15 +97,75 @@ export class SeatService {
     return seats;
   }
 
-  async invalidateShowSeatsCache(showId: string) {
+  async invalidateShowSeatsCache(showId: number) {
     const cacheKey = this.getShowSeatsCacheKey(showId);
     await this.redisService.del(cacheKey);
     this.logger.log(`Invalidated cache for show ${showId}`);
   }
 
+  async updateShowSeatAvailabilityCache(showId: number, seatsToRemove: string[]) {
+    const cacheKey = this.getShowSeatsCacheKey(showId);
+
+    try {
+      const cachedData = await this.redisService.get(cacheKey);
+      if (cachedData) {
+        const data = JSON.parse(cachedData);
+        data.available_seats = data.available_seats.filter(
+          (seat) => !seatsToRemove.includes(seat.id)
+        );
+        await this.redisService.set(
+          cacheKey,
+          JSON.stringify(data),
+          this.CACHE_TTL
+        );
+
+        this.gatewayClient.emit('seatUpdated', {
+          showId,
+          payload: JSON.stringify(data)
+        });
+
+        this.logger.log(`Updated seat availability cache for show ${showId}`);
+      }
+    } catch (err) {
+      this.logger.warn(`Redis error (update): ${err.message}`);
+    }
+  }
+
+  async addSeatsToAvailabilityCache(showId: number, seatsToAdd: { id: string, sectionId: string }[]) {
+    const cacheKey = this.getShowSeatsCacheKey(showId);
+
+    try {
+      const cachedData = await this.redisService.get(cacheKey);
+      if (cachedData) {
+        const data = JSON.parse(cachedData);
+
+        // Add seats back to available_seats, avoiding duplicates
+        const existingSeatIds = new Set(data.available_seats.map(seat => seat.id));
+        const newSeats = seatsToAdd.filter(seat => !existingSeatIds.has(seat.id));
+
+        data.available_seats = [...data.available_seats, ...newSeats];
+
+        await this.redisService.set(
+          cacheKey,
+          JSON.stringify(data),
+          this.CACHE_TTL
+        );
+
+        this.gatewayClient.emit('seatUpdated', {
+          showId,
+          payload: JSON.stringify(data)
+        });
+
+        this.logger.log(`Added seats back to availability cache for show ${showId}`);
+      }
+    } catch (err) {
+      this.logger.warn(`Redis error (add seats): ${err.message}`);
+    }
+  }
+
   async reserveSeatsWithRedis(
     seatIds: string[],
-    showId: string,
+    showId: number,
     userId: string
   ): Promise<{
     reserved: string[];
@@ -142,5 +213,11 @@ export class SeatService {
         await this.redisService.del(lockKey);
       }
     }
+  }
+
+  @OnEvent('booking.expired')
+  async handleBookingExpired(payload: { showId: number; seats: { id: string; sectionId: string }[] }) {
+    console.log('booking expired', payload);
+    await this.addSeatsToAvailabilityCache(payload.showId, payload.seats);
   }
 }

@@ -2,6 +2,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  JoinColumn,
   ManyToOne,
   OneToMany,
   PrimaryGeneratedColumn,
@@ -64,13 +65,19 @@ export class OrderItem {
   id: number;
 
   @Column({ name: "order_id" })
-  orderId: number;
+  order_id: number;
 
   @ManyToOne(() => Order, (order) => order.items)
+  @JoinColumn({ name: "order_id" })
   order: Order;
 
   @Column({ name: "ticket_type_id" })
   ticketTypeId: number;
+
+  @Column({
+    name: 'name'
+  })
+  name: string;
 
   @Column({ name: "seat_id", type: "uuid", nullable: true })
   seatId?: string;
@@ -80,6 +87,12 @@ export class OrderItem {
 
   @Column()
   quantity: number;
+
+  @Column({ name: 'row_label' })
+  rowLabel: string;
+
+  @Column({ name: 'seat_number' })
+  seatNumber: number;
 
   @Column({ type: "decimal", precision: 10, scale: 2 })
   price: number;
