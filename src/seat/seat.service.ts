@@ -55,6 +55,8 @@ export class SeatService {
       select: ["id", "rowLabel", "seatNumber"],
     });
 
+    console.log('seats, ', seats)
+
     for (const seat of seats) {
       const seatInfoKey = this.getSeatInfoKey(seat.id);
       await this.redisService.set(seatInfoKey, JSON.stringify(seat), this.SEAT_INFO_TTL);

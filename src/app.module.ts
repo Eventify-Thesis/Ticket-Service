@@ -10,6 +10,7 @@ import { TerminusModule } from "@nestjs/terminus";
 import { SeatModule } from "./seat/seat.module";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { BookingsModule } from './bookings/bookings.module';
+import { PaymentsModule } from './payments/payments.module';
 
 @Module({
   imports: [
@@ -72,6 +73,7 @@ import { BookingsModule } from './bookings/bookings.module';
 
     SeatModule,
     BookingsModule,
+    PaymentsModule,
   ],
 })
 export class AppModule { }

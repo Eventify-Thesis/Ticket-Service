@@ -54,7 +54,8 @@
     "prom-client": "^14.2.0",
     "redis": "^4.7.0",
     "reflect-metadata": "^0.1.13",
-    "rxjs": "^7.8.1"
+    "rxjs": "^7.8.1",
+    "stripe": "^18.0.0"
   },
   "devDependencies": {
     "@nestjs/cli": "^9.5.0",
@@ -64,6 +65,7 @@
     "@types/jest": "^29.5.11",
     "@types/node": "^20.10.6",
     "@types/passport-jwt": "^3.0.13",
+    "@types/stripe": "^8.0.416",
     "@types/supertest": "^6.0.2",
     "@typescript-eslint/eslint-plugin": "^6.17.0",
     "@typescript-eslint/parser": "^6.17.0",

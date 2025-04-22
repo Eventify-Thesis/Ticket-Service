@@ -12,7 +12,7 @@ import {
 export enum OrderStatus {
   PENDING = "PENDING",
   PAID = "PAID",
-  EXPIRED = "EXPIRED",
+  PAYMENT_FAILED = "PAYMENT_FAILED",
   CANCELLED = "CANCELLED",
 }
 
@@ -43,11 +43,29 @@ export class Order {
   @Column({ name: "subtotal_amount", type: "decimal", precision: 10, scale: 2 })
   subtotalAmount: number;
 
+  @Column({ name: "platform_discount_amount", type: "decimal", precision: 10, scale: 2, nullable: true })
+  platformDiscountAmount: number;
+
   @Column({ name: "total_amount", type: "decimal", precision: 10, scale: 2 })
   totalAmount: number;
 
   @Column({ name: "reserved_until" })
   reservedUntil: Date;
+
+  @Column({ name: "stripe_payment_intent_id", type: "varchar", length: 255, nullable: true })
+  stripePaymentIntentId: string;
+
+  @Column({ name: "stripe_payment_status" })
+  stripePaymentStatus: string;
+
+  @Column({ name: "stripe_payment_error_message" })
+  stripePaymentErrorMessage: string;
+
+  @Column({ name: "stripe_customer_id" })
+  stripeCustomerId: string;
+
+  @Column({ name: "paid_at", type: "timestamp", nullable: true })
+  paidAt: Date;
 
   @OneToMany(() => OrderItem, (item) => item.order)
   items: OrderItem[];

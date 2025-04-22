@@ -117,12 +117,14 @@ export class BookingsService {
 
     // 2. Lock Seats in Redis
     for (const item of dto.items) {
-      for (const seat of item.seats) {
-        const seatKey = this.getSeatLockKey(seat.id.toString());
-        if (await this.redisService.get(seatKey)) {
-          return MESSAGE.SEAT_ALREADY_BOOKED;
+      if (item?.seats) {
+        for (const seat of item.seats) {
+          const seatKey = this.getSeatLockKey(seat.id.toString());
+          if (await this.redisService.get(seatKey)) {
+            return MESSAGE.SEAT_ALREADY_BOOKED;
+          }
+          await this.redisService.set(seatKey, bookingCode, this.BOOKING_TTL);
         }
-        await this.redisService.set(seatKey, bookingCode, this.BOOKING_TTL);
       }
     }
 
@@ -162,6 +164,7 @@ export class BookingsService {
         if (it.seats?.length) {
           for (const seat of it.seats) {
             const seatInfo = await this.redisService.get(this.getSeatInfoKey(seat.id.toString()));
+
             const obj = JSON.parse(seatInfo!);
             orderItems.push(
               manager.create(OrderItem, {
@@ -215,6 +218,7 @@ export class BookingsService {
       shippingFee: 0,
       step: "question_form",
       platformDiscountAmount: 0,
+      orderId: order.id,
       items: items.map(item => ({
         id: item.ticketTypeId,
         name: ticketInfoMap.get(item.ticketTypeId)!.name,
@@ -343,6 +347,9 @@ export class BookingsService {
     if (seatsToAdd.length > 0) {
       await this.seatService.addSeatsToAvailabilityCache(showId, seatsToAdd);
     }
+
+    this.redisService.del(this.getBookingKey(showId, bookingCode));
+    this.redisService.del(this.getBookingCleanupKey(showId, bookingCode));
 
     // Release locks and update quantities
     for (const item of order.items) {
