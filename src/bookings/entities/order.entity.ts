@@ -24,6 +24,9 @@ export class Order {
   @Column({ name: "user_id" })
   userId: string;
 
+  @Column({ name: "email" })
+  email: string;
+
   @Column({ name: "event_id" })
   eventId: number;
 

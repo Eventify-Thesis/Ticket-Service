@@ -9,11 +9,13 @@ import { TicketType } from "../seat/entities/ticket-type.entity";
 import { SeatService } from "../seat/seat.service";
 import { MESSAGE } from "./booking.constants";
 import { QuestionAnswerDto } from "./dto/question-answer.dto";
+import { Voucher } from "./entities/voucher.entity";
+import { VoucherStatus } from "./entities/voucher.constant";
 
 @Injectable()
 export class BookingsService {
   private readonly logger = new Logger(BookingsService.name);
-  private readonly BOOKING_TTL = 600; // seconds
+  private readonly BOOKING_TTL = 6000; // seconds
   private readonly TICKET_TYPE_TTL = 3600; // seconds
 
   constructor(
@@ -24,6 +26,8 @@ export class BookingsService {
     private readonly orderItemRepository: Repository<OrderItem>,
     @InjectRepository(TicketType)
     private readonly ticketTypeRepository: Repository<TicketType>,
+    @InjectRepository(Voucher)
+    private readonly voucherRepository: Repository<Voucher>,
     private readonly redisService: RedisService,
     private readonly seatService: SeatService,
   ) { }
@@ -61,6 +65,7 @@ export class BookingsService {
   }
 
   async create(dto: SubmitTicketInfoDto) {
+
     const bookingCode = uuidv4();
     const now = new Date();
     const reservedUntil = new Date(now.getTime() + this.BOOKING_TTL * 1000);
@@ -143,6 +148,7 @@ export class BookingsService {
     const { order, items } = await this.dataSource.transaction(async manager => {
       const orderEntity = manager.create(Order, {
         userId: dto.userId,
+        email: dto.email,
         eventId: dto.eventId,
         showId: dto.showId,
         bookingCode,
@@ -268,7 +274,147 @@ export class BookingsService {
     };
   }
 
+  async getAvailableVouchers(eventId: number, showId: number) {
+    try {
+      const vouchers = await this.voucherRepository.find({
+        where: {
+          eventId,
+          active: true,
+          status: VoucherStatus.ACTIVE,
+        },
+      });
 
+      return vouchers.filter((voucher) => {
+        const now = new Date();
+        const isWithinTimeRange = voucher.startTime <= now && now <= voucher.endTime;
+
+        if (!isWithinTimeRange) return false;
+
+        // Check if voucher applies to all showings or specific showing
+        return voucher.isAllShowings ||
+          (voucher.showingConfigs?.some(config => config.id === showId));
+      });
+    } catch (error) {
+      this.logger.error('Error getting available vouchers:', error);
+      throw error;
+    }
+  }
+
+  async applyVoucher(showId: number, bookingCode: string, voucherCode: string) {
+    try {
+      const bookingJSON = await this.redisService.get(this.getBookingKey(showId, bookingCode));
+      const booking = JSON.parse(bookingJSON);
+
+      if (!booking) {
+        return MESSAGE.BOOKING_NOT_FOUND;
+      }
+
+      const voucher = await this.voucherRepository.findOne({
+        where: {
+          discountCode: voucherCode,
+          active: true,
+          status: VoucherStatus.ACTIVE,
+          eventId: booking.eventId
+        }
+      });
+
+      if (!voucher) {
+        return MESSAGE.VOUCHER_NOT_FOUND;
+      }
+
+      // Validate time range
+      const now = new Date();
+      if (now < voucher.startTime || now > voucher.endTime) {
+        return MESSAGE.VOUCHER_EXPIRED;
+      }
+
+      // Validate showing
+      if (!voucher.isAllShowings &&
+        !voucher.showingConfigs?.some(config => config.id === booking.showingId)) {
+        return MESSAGE.VOUCHER_INVALID_SHOWING;
+      }
+
+      const showConfig = voucher.showingConfigs?.find(
+        config => config.id === booking.showingId
+      );
+
+      // Filter items that are eligible for the voucher
+      const eligibleItems = voucher.isAllShowings ? booking.items : booking.items.filter(item =>
+        showConfig?.isAllTicketTypes ||
+        showConfig?.ticketTypeIds.includes(item.ticketTypeId)
+      );
+
+      if (eligibleItems.length === 0) {
+        return MESSAGE.VOUCHER_INVALID_TICKET_TYPES;
+      }
+
+      // Calculate total quantity only from eligible items
+      const totalQuantity = eligibleItems.reduce((sum, item) => sum + item.quantity, 0);
+
+      // Validate quantity
+      if (!voucher.isUnlimited && voucher.quantity - totalQuantity <= 0) {
+        return MESSAGE.VOUCHER_OUT_OF_STOCK;
+      }
+
+      if (voucher.minQtyPerOrder > 0 && totalQuantity < voucher.minQtyPerOrder) {
+        return {
+          ...MESSAGE.VOUCHER_MIN_QUANTITY,
+          message: `Minimum ${voucher.minQtyPerOrder} tickets required for this voucher`
+        };
+      }
+      if (voucher.maxQtyPerOrder > 0 && totalQuantity > voucher.maxQtyPerOrder) {
+        return {
+          ...MESSAGE.VOUCHER_MAX_QUANTITY,
+          message: `Maximum ${voucher.maxQtyPerOrder} tickets allowed for this voucher`
+        };
+      }
+
+      const discountAmount = this.calculateDiscount(voucher, booking);
+
+      await this.orderRepository.update({ bookingCode: booking.bookingCode }, {
+        platformDiscountAmount: discountAmount,
+        totalAmount: booking.subtotalAmount - discountAmount
+      });
+      // Update voucher quantity
+      if (!voucher.isUnlimited) {
+        voucher.quantity -= totalQuantity;
+        await this.voucherRepository.save(voucher);
+      }
+
+      // Update Redis booking data
+      booking.discountAmount = discountAmount;
+      booking.discountCode = voucherCode;
+      booking.totalAmount = booking.subtotalAmount - discountAmount;
+      await this.redisService.set(this.getBookingKey(showId, bookingCode), JSON.stringify(booking));
+
+      return {
+        success: true,
+        voucher,
+        discountAmount
+      };
+    } catch (error) {
+      console.log(error);
+      return MESSAGE.VOUCHER_CANNOT_BE_APPLIED;
+    }
+  }
+
+  private calculateDiscount(voucher: any, booking: any, showConfig?: any): number {
+    const eligibleItems = voucher.isAllShowings ? booking.items : booking.items.filter(item =>
+      showConfig?.isAllTicketTypes ||
+      showConfig?.ticketTypeIds.includes(item.ticketTypeId)
+    );
+
+    const totalAmount = eligibleItems.reduce(
+      (sum: number, ticket: any) => sum + ticket.price * ticket.quantity,
+      0
+    );
+
+    if (voucher.discountType === 'PERCENT') {
+      return (totalAmount * voucher.discountValue) / 100;
+    }
+
+    return Math.min(voucher.discountValue, totalAmount);
+  }
 
   async confirmPayment(bookingCode: string) {
     const order = await this.orderRepository.findOne({
@@ -335,7 +481,6 @@ export class BookingsService {
     order.status = OrderStatus.CANCELLED;
     await this.orderRepository.save(order);
 
-    // Collect seats to add back
     const seatsToAdd = order.items
       .filter(item => item.seatId)
       .map(item => ({
@@ -343,7 +488,6 @@ export class BookingsService {
         sectionId: item.sectionId || ''
       }));
 
-    // Update seat availability if there are seats
     if (seatsToAdd.length > 0) {
       await this.seatService.addSeatsToAvailabilityCache(showId, seatsToAdd);
     }
@@ -351,7 +495,6 @@ export class BookingsService {
     this.redisService.del(this.getBookingKey(showId, bookingCode));
     this.redisService.del(this.getBookingCleanupKey(showId, bookingCode));
 
-    // Release locks and update quantities
     for (const item of order.items) {
       if (item.seatId) {
         await this.redisService.del(this.getSeatLockKey(item.seatId));

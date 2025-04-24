@@ -6,10 +6,11 @@ import { Order, OrderItem } from "./entities/order.entity";
 import { RedisModule } from "../shared/redis/redis.module";
 import { TicketType } from "./entities/ticket-type.entity";
 import { SeatModule } from "src/seat/seat.module";
+import { Voucher } from "./entities/voucher.entity";
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Order, OrderItem, TicketType]),
+    TypeOrmModule.forFeature([Order, OrderItem, TicketType, Voucher]),
     RedisModule,
     SeatModule,
   ],
