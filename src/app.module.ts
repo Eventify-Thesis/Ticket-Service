@@ -10,6 +10,12 @@ import { TerminusModule } from "@nestjs/terminus";
 import { SeatModule } from "./seat/seat.module";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { BookingsModule } from './bookings/bookings.module';
+import { PaymentsModule } from './payments/payments.module';
+import { MailerModule } from '@nestjs-modules/mailer';
+import { join } from 'path';
+import { HandlebarsAdapter } from '@nestjs-modules/mailer/dist/adapters/handlebars.adapter';
+import { EmailModule } from './email/email.module';
+import * as handlebarsHelpers from 'handlebars-helpers';
 
 @Module({
   imports: [
@@ -53,6 +59,32 @@ import { BookingsModule } from './bookings/bookings.module';
     // Redis
     RedisModule,
 
+    // Mail
+    MailerModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (cfg: ConfigService) => ({
+        transport: {
+          host: 'smtp.sendgrid.net',
+          port: 587,
+          auth: {
+            user: 'apikey',
+            pass: cfg.get('SENDGRID_API_KEY'),
+          },
+        },
+        defaults: {
+          from: cfg.get('MAIL_FROM'),
+        },
+        template: {
+          dir: join(__dirname, 'templates', 'email'),
+          adapter: new HandlebarsAdapter({ ...handlebarsHelpers }), // or your preferred template engine
+          options: {
+            strict: true,
+          },
+        },
+      }),
+    }),
+
     // Rate Limiting
     ThrottlerModule.forRootAsync({
       imports: [ConfigModule],
@@ -72,6 +104,8 @@ import { BookingsModule } from './bookings/bookings.module';
 
     SeatModule,
     BookingsModule,
+    PaymentsModule,
+    EmailModule,
   ],
 })
 export class AppModule { }

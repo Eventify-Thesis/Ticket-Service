@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsNumber, IsString, IsArray, ValidateNested, IsOptional, IsDateString } from 'class-validator';
+import { IsNumber, IsString, IsArray, ValidateNested, IsOptional, IsDateString, IsEmail } from 'class-validator';
 
 export class SeatInfo {
   @ApiProperty()

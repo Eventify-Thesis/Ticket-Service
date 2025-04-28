@@ -71,4 +71,14 @@ export class BookingsController {
       }
     }
   }
+
+  @MessagePattern('get_available_vouchers')
+  async getAvailableVouchers({ eventId, showId }: { eventId: number, showId: number }) {
+    return this.bookingsService.getAvailableVouchers(eventId, showId);
+  }
+
+  @MessagePattern('apply_voucher')
+  async applyVoucher({ showId, bookingCode, voucherCode }: { showId: number, bookingCode: string; voucherCode: string }) {
+    return this.bookingsService.applyVoucher(showId, bookingCode, voucherCode);
+  }
 }

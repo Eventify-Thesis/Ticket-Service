@@ -20,6 +20,7 @@
     "test:e2e": "jest --config ./test/jest-e2e.json"
   },
   "dependencies": {
+    "@nestjs-modules/mailer": "^2.0.2",
     "@nestjs/bull": "^10.0.1",
     "@nestjs/cache-manager": "^1.0.0",
     "@nestjs/common": "^11.0.14",
@@ -42,10 +43,12 @@
     "class-validator": "^0.14.1",
     "compression": "^1.7.4",
     "express-rate-limit": "^6.9.0",
+    "handlebars-helpers": "^0.10.0",
     "helmet": "^6.2.0",
     "ioredis": "^5.3.2",
     "mongoose": "^7.6.3",
     "nestjs-pino": "^3.5.0",
+    "nodemailer": "^6.10.1",
     "passport": "^0.6.0",
     "passport-jwt": "^4.0.1",
     "pg": "^8.14.1",
@@ -54,7 +57,8 @@
     "prom-client": "^14.2.0",
     "redis": "^4.7.0",
     "reflect-metadata": "^0.1.13",
-    "rxjs": "^7.8.1"
+    "rxjs": "^7.8.1",
+    "stripe": "^18.0.0"
   },
   "devDependencies": {
     "@nestjs/cli": "^9.5.0",
@@ -64,6 +68,7 @@
     "@types/jest": "^29.5.11",
     "@types/node": "^20.10.6",
     "@types/passport-jwt": "^3.0.13",
+    "@types/stripe": "^8.0.416",
     "@types/supertest": "^6.0.2",
     "@typescript-eslint/eslint-plugin": "^6.17.0",
     "@typescript-eslint/parser": "^6.17.0",

@@ -18,12 +18,13 @@ export class Question {
   @ValidateNested()
   @Type(() => QuestionResponse)
   response: QuestionResponse;
+
 }
 
 export class Attendee {
   @ApiProperty({ description: 'ID of the ticket type' })
   @IsNumber()
-  ticket_type_id: number;
+  id: number;
 
   @ApiProperty({ description: 'First name of the attendee' })
   @IsString()
