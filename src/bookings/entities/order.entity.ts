@@ -24,6 +24,18 @@ export class Order {
   @Column({ name: "user_id" })
   userId: string;
 
+  @Column({ name: 'first_name' })
+  firstName: string;
+
+  @Column({ name: 'last_name' })
+  lastName: string;
+
+  @Column({ name: "public_id" })
+  publicId: string;
+
+  @Column({ name: "short_id" })
+  shortId: string;
+
   @Column({ name: "email" })
   email: string;
 

@@ -46,11 +46,6 @@ export class SubmitTicketInfoDto {
   showId: number;
 
   @ApiProperty()
-  @IsString()
-  @IsEmail()
-  email: string;
-
-  @ApiProperty()
   @IsOptional()
   @IsString()
   userId?: string;

@@ -27,6 +27,9 @@ export class BookingAnswer {
     @Column({ name: "question_id" })
     questionId: number;
 
+    @Column({ name: "attendee_id" })
+    attendeeId: number;
+
     @Column({ name: "ticket_type_id" })
     ticketTypeId: number;
 

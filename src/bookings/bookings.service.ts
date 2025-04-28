@@ -11,11 +11,14 @@ import { MESSAGE } from "./booking.constants";
 import { QuestionAnswerDto } from "./dto/question-answer.dto";
 import { Voucher } from "./entities/voucher.entity";
 import { VoucherStatus } from "./entities/voucher.constant";
+import { getBookingAnswerKey, getBookingCleanupKey, getBookingKey, getSeatInfoKey, getSeatLockKey, getSectionLockKey, getTicketTypeInfoKey, getTicketTypeLockKey } from "src/utils/getRedisKey";
+import { IdHelper } from "src/common/helper/id-helper";
+import { EventStatistics } from "src/payments/entities/event-statistics.entity";
 
 @Injectable()
 export class BookingsService {
   private readonly logger = new Logger(BookingsService.name);
-  private readonly BOOKING_TTL = 6000; // seconds
+  private readonly BOOKING_TTL = 600; // seconds
   private readonly TICKET_TYPE_TTL = 3600; // seconds
 
   constructor(
@@ -32,37 +35,7 @@ export class BookingsService {
     private readonly seatService: SeatService,
   ) { }
 
-  private getSeatLockKey(seatId: string): string {
-    return `seat:lock:${seatId}`;
-  }
 
-  private getTicketTypeLockKey(ticketTypeId: number): string {
-    return `ticket-type:lock:${ticketTypeId}`;
-  }
-
-  private getTicketTypeInfoKey(ticketTypeId: number): string {
-    return `ticket-type:info:${ticketTypeId}`;
-  }
-
-  private getSectionLockKey(sectionId: string): string {
-    return `section:lock:${sectionId}`;
-  }
-
-  private getBookingKey(showId: number, bookingCode: string): string {
-    return `booking:${showId}:${bookingCode}`;
-  }
-
-  private getBookingCleanupKey(showId: number, bookingCode: string): string {
-    return `booking:cleanup:${showId}:${bookingCode}`;
-  }
-
-  private getBookingAnswerKey(showId: number, bookingCode: string): string {
-    return `booking:answer:${showId}:${bookingCode}`;
-  }
-
-  private getSeatInfoKey(seatId: string): string {
-    return `seat:info:${seatId}`;
-  }
 
   async create(dto: SubmitTicketInfoDto) {
 
@@ -75,8 +48,8 @@ export class BookingsService {
     const ticketInfoMap = new Map<number, { price: number; name: string }>();
 
     for (const item of dto.items) {
-      const ticketKey = this.getTicketTypeLockKey(item.id);
-      const ticketInfoKey = this.getTicketTypeInfoKey(item.id);
+      const ticketKey = getTicketTypeLockKey(item.id);
+      const ticketInfoKey = getTicketTypeInfoKey(item.id);
       let availableQty = parseInt(await this.redisService.get(ticketKey));
       const ticketInfo = await this.redisService.get(ticketInfoKey);
       let ticketPrice: number;
@@ -124,7 +97,7 @@ export class BookingsService {
     for (const item of dto.items) {
       if (item?.seats) {
         for (const seat of item.seats) {
-          const seatKey = this.getSeatLockKey(seat.id.toString());
+          const seatKey = getSeatLockKey(seat.id.toString());
           if (await this.redisService.get(seatKey)) {
             return MESSAGE.SEAT_ALREADY_BOOKED;
           }
@@ -136,7 +109,7 @@ export class BookingsService {
     // 3. Lock Sections in Redis
     for (const item of dto.items) {
       if (item.sectionId) {
-        const sectionKey = this.getSectionLockKey(item.sectionId.toString());
+        const sectionKey = getSectionLockKey(item.sectionId.toString());
         if (await this.redisService.get(sectionKey)) {
           return MESSAGE.SECTION_ALREADY_FULL;
         }
@@ -148,7 +121,6 @@ export class BookingsService {
     const { order, items } = await this.dataSource.transaction(async manager => {
       const orderEntity = manager.create(Order, {
         userId: dto.userId,
-        email: dto.email,
         eventId: dto.eventId,
         showId: dto.showId,
         bookingCode,
@@ -156,8 +128,17 @@ export class BookingsService {
         subtotalAmount: 0,
         totalAmount: 0,
         reservedUntil,
+        publicId: IdHelper.publicId(IdHelper.ORDER_PREFIX),
+        shortId: IdHelper.shortId(IdHelper.ORDER_PREFIX),
       });
+
       await manager.save(orderEntity);
+
+      await manager.save(EventStatistics, {
+        eventId: dto.eventId,
+        ordersCreated: 1,
+      });
+
 
       const orderItems: OrderItem[] = [];
       let subtotal = 0;
@@ -169,13 +150,14 @@ export class BookingsService {
 
         if (it.seats?.length) {
           for (const seat of it.seats) {
-            const seatInfo = await this.redisService.get(this.getSeatInfoKey(seat.id.toString()));
+            const seatInfo = await this.redisService.get(getSeatInfoKey(seat.id.toString()));
 
             const obj = JSON.parse(seatInfo!);
             orderItems.push(
               manager.create(OrderItem, {
                 order_id: orderEntity.id,
                 ticketTypeId: it.id,
+                name: info.name,
                 seatId: seat.id,
                 rowLabel: obj.rowLabel,
                 seatNumber: obj.seatNumber,
@@ -191,6 +173,7 @@ export class BookingsService {
               order_id: orderEntity.id,
               ticketTypeId: it.id,
               sectionId: it.sectionId,
+              name: info.name,
               quantity: it.quantity,
               price: info.price,
             }),
@@ -240,8 +223,8 @@ export class BookingsService {
     };
 
     await Promise.all([
-      this.redisService.set(this.getBookingKey(dto.showId, bookingCode), JSON.stringify(bookingData)),
-      this.redisService.set(this.getBookingCleanupKey(dto.showId, bookingCode), "", this.BOOKING_TTL),
+      this.redisService.set(getBookingKey(dto.showId, bookingCode), JSON.stringify(bookingData)),
+      this.redisService.set(getBookingCleanupKey(dto.showId, bookingCode), "", this.BOOKING_TTL),
     ]);
 
     return {
@@ -302,7 +285,7 @@ export class BookingsService {
 
   async applyVoucher(showId: number, bookingCode: string, voucherCode: string) {
     try {
-      const bookingJSON = await this.redisService.get(this.getBookingKey(showId, bookingCode));
+      const bookingJSON = await this.redisService.get(getBookingKey(showId, bookingCode));
       const booking = JSON.parse(bookingJSON);
 
       if (!booking) {
@@ -385,7 +368,7 @@ export class BookingsService {
       booking.discountAmount = discountAmount;
       booking.discountCode = voucherCode;
       booking.totalAmount = booking.subtotalAmount - discountAmount;
-      await this.redisService.set(this.getBookingKey(showId, bookingCode), JSON.stringify(booking));
+      await this.redisService.set(getBookingKey(showId, bookingCode), JSON.stringify(booking));
 
       return {
         success: true,
@@ -431,7 +414,7 @@ export class BookingsService {
 
     for (const item of order.items) {
       if (item.seatId) {
-        await this.redisService.del(this.getSeatLockKey(item.seatId));
+        await this.redisService.del(getSeatLockKey(item.seatId));
       }
 
       await this.ticketTypeRepository.increment(
@@ -445,8 +428,8 @@ export class BookingsService {
   }
 
   async getBookingStatus(showId: number, bookingCode: string) {
-    const bookingKey = this.getBookingKey(showId, bookingCode);
-    const bookingCleanupKey = this.getBookingCleanupKey(showId, bookingCode);
+    const bookingKey = getBookingKey(showId, bookingCode);
+    const bookingCleanupKey = getBookingCleanupKey(showId, bookingCode);
     const cached = await this.redisService.get(bookingKey);
 
     if (!cached) {
@@ -492,16 +475,16 @@ export class BookingsService {
       await this.seatService.addSeatsToAvailabilityCache(showId, seatsToAdd);
     }
 
-    this.redisService.del(this.getBookingKey(showId, bookingCode));
-    this.redisService.del(this.getBookingCleanupKey(showId, bookingCode));
+    this.redisService.del(getBookingKey(showId, bookingCode));
+    this.redisService.del(getBookingCleanupKey(showId, bookingCode));
 
     for (const item of order.items) {
       if (item.seatId) {
-        await this.redisService.del(this.getSeatLockKey(item.seatId));
+        await this.redisService.del(getSeatLockKey(item.seatId));
       }
 
       await this.redisService.incrBy(
-        this.getTicketTypeLockKey(item.ticketTypeId),
+        getTicketTypeLockKey(item.ticketTypeId),
         item.quantity
       );
     }
@@ -510,7 +493,7 @@ export class BookingsService {
   }
 
   async getFormAnswers(showId: number, bookingCode: string) {
-    const bookingAnswersKey = this.getBookingAnswerKey(showId, bookingCode);
+    const bookingAnswersKey = getBookingAnswerKey(showId, bookingCode);
     const cached = await this.redisService.get(bookingAnswersKey);
 
     if (!cached) {
@@ -529,7 +512,7 @@ export class BookingsService {
   }
 
   async updateAnswers(questionAnswers: QuestionAnswerDto) {
-    const bookingAnswersKey = this.getBookingAnswerKey(questionAnswers.showId, questionAnswers.bookingCode);
+    const bookingAnswersKey = getBookingAnswerKey(questionAnswers.showId, questionAnswers.bookingCode);
     await this.redisService.set(bookingAnswersKey, JSON.stringify(questionAnswers));
 
     return {
