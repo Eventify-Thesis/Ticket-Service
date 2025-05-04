@@ -31,7 +31,7 @@ export class EventStatisticsService {
           ticketsSold,
           salesTotalGross: order.subtotalAmount,
           salesTotalNet: order.totalAmount,
-          totalDiscount: order.platformDiscountAmount,
+          totalDiscount: order.platformDiscountAmount ?? 0,
           ordersCreated: 1,
         }),
       );
@@ -46,7 +46,7 @@ export class EventStatisticsService {
         ticketsSold: () => `"tickets_sold" + ${ticketsSold}`,
         salesTotalGross: () => `"sales_total_gross" + ${order.subtotalAmount}`,
         salesTotalNet: () => `"sales_total_net" + ${order.totalAmount}`,
-        totalDiscount: () => `"total_discount" + ${order.platformDiscountAmount}`,
+        totalDiscount: () => `"total_discount" + ${order.platformDiscountAmount ?? 0}`,
         ordersCreated: () => `"orders_created" + 1`,
         version: () => `"version" + 1`,
       })
@@ -73,7 +73,7 @@ export class EventStatisticsService {
           ticketsSold,
           salesTotalGross: order.subtotalAmount,
           salesTotalNet: order.totalAmount,
-          totalDiscount: order.platformDiscountAmount,
+          totalDiscount: order.platformDiscountAmount ?? 0,
           ordersCreated: 1,
         }),
       );
@@ -88,7 +88,7 @@ export class EventStatisticsService {
         ticketsSold: () => `"tickets_sold" + ${ticketsSold}`,
         salesTotalGross: () => `"sales_total_gross" + ${order.subtotalAmount}`,
         salesTotalNet: () => `"sales_total_net" + ${order.totalAmount}`,
-        totalDiscount: () => `"total_discount" + ${order.platformDiscountAmount}`,
+        totalDiscount: () => `"total_discount" + ${order.platformDiscountAmount ?? 0}`,
         ordersCreated: () => `"orders_created" + 1`,
         version: () => `"version" + 1`,
       })

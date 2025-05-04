@@ -1,14 +1,14 @@
-import { Order } from "src/bookings/entities/order.entity";
 import {
   Column,
   CreateDateColumn,
   Entity,
   JoinColumn,
   ManyToOne,
-  OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from "typeorm";
+import { Order } from "src/bookings/entities/order.entity";
+// import { BookingAnswer } from "../../order/entities/booking-answer.entity";
 
 @Entity("attendees")
 export class Attendee {
@@ -46,6 +46,10 @@ export class Attendee {
   @Column({ name: 'seat_id' })
   seatId: string;
 
+  // @ManyToOne(() => TicketType)
+  // @JoinColumn({ name: 'ticket_type_id' })
+  // ticketType: TicketType;
+
   @Column({ name: 'ticket_type_id' })
   ticketTypeId: number;
 
@@ -72,6 +76,9 @@ export class Attendee {
 
   @Column({ name: 'checked_out_at' })
   checkedOutAt: Date;
+
+  // @OneToOne(() => BookingAnswer, (bookingAnswer) => bookingAnswer.attendee)
+  // bookingAnswer: BookingAnswer;
 
   @CreateDateColumn({ name: "created_at" })
   createdAt: Date;

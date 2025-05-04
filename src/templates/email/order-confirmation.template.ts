@@ -1,3 +1,78 @@
+interface EventInfo {
+  eventName: string;
+  orgLogoUrl: string;
+  orgName: string;
+  venueName: string;
+  street: string;
+}
+
+interface Attendee {
+  firstName: string;
+  lastName: string;
+  publicId: string;
+  email: string;
+}
+
+interface OrderItem {
+  name: string;
+  quantity: number;
+  price: number;
+}
+
+interface Order {
+  firstName: string;
+  lastName: string;
+  createdAt: Date;
+  subtotalAmount: number;
+  platformDiscountAmount: number;
+  totalAmount: number;
+  items: OrderItem[];
+  attendees?: Attendee[];
+}
+
+export const generateTicketEmail = (attendees: Attendee[], event: EventInfo): string => {
+  const ticketsList = attendees.map((attendee) => {
+    const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(attendee.publicId)}`;
+    return `
+      <div style="margin-bottom: 30px; padding: 20px; background-color: #f8f9fa; border-radius: 8px; border: 1px solid #e9ecef;">
+        <h3 style="margin: 0 0 15px 0; color: #1a73e8;">${attendee.firstName} ${attendee.lastName}</h3>
+        <p style="margin: 5px 0; color: #666;">Ticket ID: ${attendee.publicId}</p>
+        <div style="text-align: center; margin-top: 20px;">
+          <img src="${qrCodeUrl}" alt="Ticket QR Code" style="width: 200px; height: 200px;">
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  return `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="utf-8">
+        <title>Your Tickets - ${event.eventName}</title>
+      </head>
+      <body style="font-family: 'Segoe UI', Arial, sans-serif; line-height: 1.6; color: #333; background-color: #f5f5f5; margin: 0; padding: 0;">
+        <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-top: 20px;">
+          <div style="text-align: center; padding: 30px; background: linear-gradient(135deg, #1a73e8, #0d47a1); border-radius: 8px 8px 0 0;">
+            <img src="${event.orgLogoUrl}" alt="${event.orgName}" style="max-width: 180px; margin-bottom: 20px;">
+            <h1 style="color: #ffffff; margin: 0; font-size: 28px;">Your Tickets</h1>
+          </div>
+          
+          <div style="padding: 30px;">
+            <p style="font-size: 16px;">Here are your tickets for <strong>${event.eventName}</strong>. Each ticket includes a unique QR code that will be scanned at the event entrance.</p>
+            
+            ${ticketsList}
+            
+            <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e9ecef; text-align: center; color: #666;">
+              <p>Save these tickets or take a screenshot. You'll need to show them at the event.</p>
+            </div>
+          </div>
+        </div>
+      </body>
+    </html>
+  `;
+};
+
 export const generateOrderConfirmationEmail = (order: any, event: any) => {
   const ticketsList = order.items
     .map(
