@@ -228,43 +228,48 @@ export class OrdersService {
           this.logger.debug('No booking answers found to process');
         }
 
-        //5. Get event info from raw query since Event entity is not available
-        this.logger.debug('Fetching event details for confirmation email');
-        const [eventInfo] = await manager.query(`
-          SELECT 
-            id,
-            event_name as "eventName",
-            event_description as "eventDescription",
-            org_name as "orgName",
-            org_description as "orgDescription",
-            org_logo_url as "orgLogoUrl",
-            event_logo_url as "eventLogoUrl",
-            event_banner_url as "eventBannerUrl",
-            venue_name as "venueName",
-            street,
-            created_at as "createdAt",
-            updated_at as "updatedAt"
-          FROM events 
-          WHERE id = $1
-        `, [order.eventId]);
-
-        if (!eventInfo) {
-          throw new Error(`Event not found for order ${orderId}`);
-        }
-
-        // 6. Increment event statistics
+        // 5. Increment event statistics
         await this.eventStatisticsService.updateStatistics(order, manager);
 
-        this.logger.debug('Sending confirmation email');
-        await this.emailService.sendConfirmation(order, eventInfo);
-
-
-        // 7. Cleanup Redis keys
+        // 6. Cleanup Redis keys
         this.logger.debug('Cleaning up Redis keys');
         await this.cleanupRedisKeys(order, bookingAnswerKey);
 
         this.logger.log(`Successfully completed payment for order ${orderId}`);
       });
+
+      const finalOrder = await this.dataSource.createQueryBuilder(Order, 'order')
+        .leftJoinAndSelect('order.attendees', 'attendees')
+        .leftJoinAndSelect('order.items', 'items')
+        .where('order.id = :orderId', { orderId })
+        .getOneOrFail();
+
+      //5. Get event info from raw query since Event entity is not available
+      this.logger.debug('Fetching event details for confirmation email');
+      const [eventInfo] = await this.dataSource.query(`
+        SELECT 
+          id,
+          event_name as "eventName",
+          event_description as "eventDescription",
+          org_name as "orgName",
+          org_description as "orgDescription",
+          org_logo_url as "orgLogoUrl",
+          event_logo_url as "eventLogoUrl",
+          event_banner_url as "eventBannerUrl",
+          venue_name as "venueName",
+          street,
+          created_at as "createdAt",
+          updated_at as "updatedAt"
+        FROM events 
+        WHERE id = $1
+      `, [finalOrder.eventId]);
+
+      if (!eventInfo) {
+        throw new Error(`Event not found for order ${orderId}`);
+      }
+
+      this.logger.debug('Sending confirmation email');
+      await this.emailService.sendConfirmation(finalOrder, eventInfo);
     } catch (error) {
       this.logger.error(`Failed to complete payment for order ${orderId}: ${error.message}`, error.stack);
       throw error;

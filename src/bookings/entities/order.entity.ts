@@ -8,6 +8,8 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from "typeorm";
+import { BookingAnswer } from "./booking-answer.entity";
+import { Attendee } from "src/payments/entities/attendees.entity";
 
 export enum OrderStatus {
   PENDING = "PENDING",
@@ -21,20 +23,30 @@ export class Order {
   @PrimaryGeneratedColumn()
   id: number;
 
+  // @OneToMany(() => BookingAnswer, (bookingAnswer) => bookingAnswer.order, {
+  //   cascade: true
+  // })
+  // bookingAnswers: BookingAnswer[];
+
+  @OneToMany(() => Attendee, (attendee) => attendee.order, {
+    cascade: true
+  })
+  attendees: Attendee[];
+
   @Column({ name: "user_id" })
   userId: string;
-
-  @Column({ name: 'first_name' })
-  firstName: string;
-
-  @Column({ name: 'last_name' })
-  lastName: string;
 
   @Column({ name: "public_id" })
   publicId: string;
 
   @Column({ name: "short_id" })
   shortId: string;
+
+  @Column({ name: 'first_name' })
+  firstName: string;
+
+  @Column({ name: 'last_name' })
+  lastName: string;
 
   @Column({ name: "email" })
   email: string;
