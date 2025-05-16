@@ -153,16 +153,19 @@ export class BookingsService {
             const seatInfo = await this.redisService.get(getSeatInfoKey(seat.id.toString()));
 
             const obj = JSON.parse(seatInfo!);
+
+            console.log("obj", JSON.stringify(obj, null, 2));
+
             orderItems.push(
               manager.create(OrderItem, {
                 order_id: orderEntity.id,
                 ticketTypeId: it.id,
                 name: info.name,
-                seatId: seat.id,
-                rowLabel: obj.rowLabel,
-                seatNumber: obj.seatNumber,
+                seatId: seat?.id,
+                rowLabel: obj?.rowLabel,
+                seatNumber: obj?.seatNumber,
                 sectionId: it.sectionId,
-                quantity: seat.quantity,
+                quantity: seat?.quantity,
                 price: info.price,
               }),
             );
@@ -192,6 +195,7 @@ export class BookingsService {
     const reservedSeatIds = items.map(i => i.seatId).filter(id => !!id);
     await this.seatService.updateShowSeatAvailabilityCache(dto.showId, reservedSeatIds);
 
+    console.log(JSON.stringify(items, null, 2));
     // 6. Build and persist booking payload + cleanup key
     const bookingData = {
       eventId: order.eventId,
@@ -241,6 +245,8 @@ export class BookingsService {
           sectionId: item.sectionId,
           quantity: item.quantity,
           seatId: item.seatId,
+          rowLabel: item.rowLabel,
+          seatNumber: item.seatNumber,
         })),
         expiredAt: reservedUntil.toISOString(),
         bookingCode,

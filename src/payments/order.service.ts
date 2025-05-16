@@ -129,6 +129,7 @@ export class OrdersService {
         })
       );
 
+
       this.logger.debug(`Processing ${orderQuestions.length} order-level questions`);
 
       // Process attendee data and questions
@@ -138,6 +139,9 @@ export class OrdersService {
           showId: order.showId,
           orderId: order.id,
           ticketTypeId: attendee.id,
+          seatId: attendee?.seatId,
+          rowLabel: attendee?.rowLabel,
+          seatNumber: attendee?.seatNumber,
           firstName: attendee.first_name,
           lastName: attendee.last_name,
           email: attendee.email,

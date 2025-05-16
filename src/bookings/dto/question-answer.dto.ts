@@ -34,6 +34,21 @@ export class Attendee {
   @IsString()
   last_name: string;
 
+  @ApiProperty({ description: 'Seat ID of the attendee' })
+  @IsString()
+  @IsOptional()
+  seatId?: string;
+
+  @ApiProperty({ description: 'Row label of the attendee' })
+  @IsString()
+  @IsOptional()
+  rowLabel?: string;
+
+  @ApiProperty({ description: 'Seat number of the attendee' })
+  @IsString()
+  @IsOptional()
+  seatNumber?: string;
+
   @ApiProperty({ description: 'Email of the attendee' })
   @IsEmail()
   email: string;

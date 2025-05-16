@@ -100,7 +100,7 @@ import * as handlebarsHelpers from 'handlebars-helpers';
 
     // Health Checks
     TerminusModule,
-    HealthModule,
+    // HealthModule,
 
     SeatModule,
     BookingsModule,
