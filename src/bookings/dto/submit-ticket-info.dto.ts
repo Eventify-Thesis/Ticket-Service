@@ -1,6 +1,14 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
-import { IsNumber, IsString, IsArray, ValidateNested, IsOptional, IsDateString, IsEmail } from 'class-validator';
+import { ApiProperty } from "@nestjs/swagger";
+import { Type } from "class-transformer";
+import {
+  IsNumber,
+  IsString,
+  IsArray,
+  ValidateNested,
+  IsOptional,
+  IsDateString,
+  IsEmail,
+} from "class-validator";
 
 export class SeatInfo {
   @ApiProperty()
@@ -25,6 +33,11 @@ export class ItemInfo {
   @IsOptional()
   @IsString()
   sectionId?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  sectionName?: string;
 
   @ApiProperty({ required: false, type: [SeatInfo] })
   @IsOptional()

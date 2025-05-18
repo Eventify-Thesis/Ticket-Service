@@ -13,6 +13,13 @@ export const MESSAGE = {
     code: HttpStatus.CONFLICT,
     httpStatus: HttpStatus.CONFLICT,
   },
+
+  SECTION_QUANTITY_NOT_ENOUGH: {
+    error: "SECTION_QUANTITY_NOT_ENOUGH",
+    message: "Section quantity not enough",
+    code: HttpStatus.EXPECTATION_FAILED,
+    httpStatus: HttpStatus.EXPECTATION_FAILED,
+  },
   SEAT_ALREADY_BOOKED: {
     error: "SEAT_ALREADY_BOOKED",
     message: "Seat already booked",

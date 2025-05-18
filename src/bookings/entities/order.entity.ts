@@ -29,7 +29,7 @@ export class Order {
   // bookingAnswers: BookingAnswer[];
 
   @OneToMany(() => Attendee, (attendee) => attendee.order, {
-    cascade: true
+    cascade: true,
   })
   attendees: Attendee[];
 
@@ -42,10 +42,10 @@ export class Order {
   @Column({ name: "short_id" })
   shortId: string;
 
-  @Column({ name: 'first_name' })
+  @Column({ name: "first_name" })
   firstName: string;
 
-  @Column({ name: 'last_name' })
+  @Column({ name: "last_name" })
   lastName: string;
 
   @Column({ name: "email" })
@@ -70,7 +70,13 @@ export class Order {
   @Column({ name: "subtotal_amount", type: "decimal", precision: 10, scale: 2 })
   subtotalAmount: number;
 
-  @Column({ name: "platform_discount_amount", type: "decimal", precision: 10, scale: 2, nullable: true })
+  @Column({
+    name: "platform_discount_amount",
+    type: "decimal",
+    precision: 10,
+    scale: 2,
+    nullable: true,
+  })
   platformDiscountAmount: number;
 
   @Column({ name: "total_amount", type: "decimal", precision: 10, scale: 2 })
@@ -79,7 +85,12 @@ export class Order {
   @Column({ name: "reserved_until" })
   reservedUntil: Date;
 
-  @Column({ name: "stripe_payment_intent_id", type: "varchar", length: 255, nullable: true })
+  @Column({
+    name: "stripe_payment_intent_id",
+    type: "varchar",
+    length: 255,
+    nullable: true,
+  })
   stripePaymentIntentId: string;
 
   @Column({ name: "stripe_payment_status" })
@@ -120,7 +131,7 @@ export class OrderItem {
   ticketTypeId: number;
 
   @Column({
-    name: 'name'
+    name: "name",
   })
   name: string;
 
@@ -130,13 +141,16 @@ export class OrderItem {
   @Column({ name: "section_id", type: "uuid", nullable: true })
   sectionId?: string;
 
+  @Column({ name: "section_name", nullable: true })
+  sectionName?: string;
+
   @Column()
   quantity: number;
 
-  @Column({ name: 'row_label' })
+  @Column({ name: "row_label" })
   rowLabel: string;
 
-  @Column({ name: 'seat_number' })
+  @Column({ name: "seat_number" })
   seatNumber: number;
 
   @Column({ type: "decimal", precision: 10, scale: 2 })

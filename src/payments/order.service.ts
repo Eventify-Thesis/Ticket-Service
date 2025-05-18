@@ -1,16 +1,21 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
-import { RedisService } from 'src/shared/redis/redis.service';
-import { BookingAnswer } from 'src/bookings/entities/booking-answer.entity';
-import { Attendee } from 'src/payments/entities/attendees.entity';
-import { Seat, SeatStatus } from 'src/seat/entities/seat.entity';
-import { getBookingAnswerKey, getBookingKey, getBookingCleanupKey, getSeatLockKey } from 'src/utils/getRedisKey';
-import { Order, OrderStatus } from 'src/bookings/entities/order.entity';
-import { TicketType } from 'src/seat/entities/ticket-type.entity';
-import { EmailService } from 'src/email/email.service';
-import { IdHelper } from 'src/common/helper/id-helper';
-import { EventStatisticsService } from './event-statistics.service';
+import { Injectable, Logger } from "@nestjs/common";
+import { InjectDataSource, InjectRepository } from "@nestjs/typeorm";
+import { DataSource, Repository } from "typeorm";
+import { RedisService } from "src/shared/redis/redis.service";
+import { BookingAnswer } from "src/bookings/entities/booking-answer.entity";
+import { Attendee } from "src/payments/entities/attendees.entity";
+import { Seat, SeatStatus } from "src/seat/entities/seat.entity";
+import {
+  getBookingAnswerKey,
+  getBookingKey,
+  getBookingCleanupKey,
+  getSeatLockKey,
+} from "src/utils/getRedisKey";
+import { Order, OrderStatus } from "src/bookings/entities/order.entity";
+import { TicketType } from "src/seat/entities/ticket-type.entity";
+import { EmailService } from "src/email/email.service";
+import { IdHelper } from "src/common/helper/id-helper";
+import { EventStatisticsService } from "./event-statistics.service";
 
 interface OrderPaymentData {
   paymentIntentId: string;
@@ -26,8 +31,8 @@ export class OrdersService {
     @InjectRepository(Order) private orderRepository: Repository<Order>,
     private readonly redisService: RedisService,
     private readonly emailService: EmailService,
-    private readonly eventStatisticsService: EventStatisticsService,
-  ) { }
+    private readonly eventStatisticsService: EventStatisticsService
+  ) {}
 
   async getOrder(orderId: number): Promise<Order> {
     try {
@@ -61,7 +66,9 @@ export class OrdersService {
       order.stripePaymentIntentId = paymentData.paymentIntentId;
       this.logger.debug(`Updated payment status for order ${order.id}`);
     } catch (error) {
-      this.logger.error(`Failed to update payment status for order ${order.id}: ${error.message}`);
+      this.logger.error(
+        `Failed to update payment status for order ${order.id}: ${error.message}`
+      );
       throw error;
     }
   }
@@ -88,7 +95,7 @@ export class OrdersService {
           manager.increment(
             TicketType,
             { id: item.ticketTypeId },
-            'soldQuantity',
+            "soldQuantity",
             item.quantity
           )
         );
@@ -97,9 +104,11 @@ export class OrdersService {
       });
 
       await Promise.all(updatePromises);
-      this.logger.debug('Successfully processed seats and tickets');
+      this.logger.debug("Successfully processed seats and tickets");
     } catch (error) {
-      this.logger.error(`Failed to process seats and tickets: ${error.message}`);
+      this.logger.error(
+        `Failed to process seats and tickets: ${error.message}`
+      );
       throw error;
     }
   }
@@ -118,59 +127,63 @@ export class OrdersService {
       order.email = bookingAnswers.order.email;
 
       // Process order-level questions
-      const orderQuestions = bookingAnswers.order.questions.map(
-        (question) => ({
-          eventId: order.eventId,
-          showId: order.showId,
-          orderId: order.id,
-          userId: order.userId,
-          questionId: parseInt(question.question_id),
-          answer: JSON.stringify(question.response?.answer),
+      const orderQuestions = bookingAnswers.order.questions.map((question) => ({
+        eventId: order.eventId,
+        showId: order.showId,
+        orderId: order.id,
+        userId: order.userId,
+        questionId: parseInt(question.question_id),
+        answer: JSON.stringify(question.response?.answer),
+      }));
+
+      this.logger.debug(
+        `Processing ${orderQuestions.length} order-level questions`
+      );
+
+      // Process attendee data and questions
+      const attendees = await Promise.all(
+        bookingAnswers.attendees.map(async (attendee: any) => {
+          const attendeeEntity = await manager.save(Attendee, {
+            eventId: order.eventId,
+            showId: order.showId,
+            orderId: order.id,
+            ticketTypeId: attendee.id,
+            seatId: attendee?.seatId,
+            rowLabel: attendee?.rowLabel,
+            seatNumber: attendee?.seatNumber,
+            firstName: attendee.first_name,
+            lastName: attendee.last_name,
+            email: attendee.email,
+            publicId: IdHelper.publicId(IdHelper.ATTENDEE_PREFIX),
+            shortId: IdHelper.shortId(IdHelper.ATTENDEE_PREFIX),
+            status: "ACTIVE",
+          });
+
+          return {
+            attendeeEntity,
+            originalAttendee: attendee,
+          };
         })
       );
 
-
-      this.logger.debug(`Processing ${orderQuestions.length} order-level questions`);
-
-      // Process attendee data and questions
-      const attendees = await Promise.all(bookingAnswers.attendees.map(async (attendee: any) => {
-        const attendeeEntity = await manager.save(Attendee, {
-          eventId: order.eventId,
-          showId: order.showId,
-          orderId: order.id,
-          ticketTypeId: attendee.id,
-          seatId: attendee?.seatId,
-          rowLabel: attendee?.rowLabel,
-          seatNumber: attendee?.seatNumber,
-          firstName: attendee.first_name,
-          lastName: attendee.last_name,
-          email: attendee.email,
-          publicId: IdHelper.publicId(IdHelper.ATTENDEE_PREFIX),
-          shortId: IdHelper.shortId(IdHelper.ATTENDEE_PREFIX),
-          status: 'ACTIVE'
-        });
-
-        return {
-          attendeeEntity,
-          originalAttendee: attendee
-        };
-      }));
-
       this.logger.debug(`Processing ${attendees.length} attendees`);
 
-      const attendeeQuestions = attendees.flatMap(({ attendeeEntity, originalAttendee }) =>
-        (originalAttendee.questions || []).map((question: any) => ({
-          orderId: order.id,
-          eventId: order.eventId,
-          showId: order.showId,
-          userId: order.userId,
-          questionId: question.id,
-          answer: JSON.stringify(question.response),
-          attendeeId: attendeeEntity.id
-        }))
+      const attendeeQuestions = attendees.flatMap(
+        ({ attendeeEntity, originalAttendee }) =>
+          (originalAttendee.questions || []).map((question: any) => ({
+            orderId: order.id,
+            eventId: order.eventId,
+            showId: order.showId,
+            userId: order.userId,
+            questionId: question.id,
+            answer: JSON.stringify(question.response),
+            attendeeId: attendeeEntity.id,
+          }))
       );
 
-      this.logger.debug(`Processing ${attendeeQuestions.length} attendee questions`);
+      this.logger.debug(
+        `Processing ${attendeeQuestions.length} attendee questions`
+      );
 
       // Save all entities
       await Promise.all([
@@ -178,29 +191,41 @@ export class OrdersService {
         manager.save(order),
       ]);
 
-      this.logger.debug('Successfully saved all booking answers and attendees');
+      this.logger.debug("Successfully saved all booking answers and attendees");
     } catch (error) {
-      this.logger.error(`Failed to process booking answers for order ${order.id}: ${error.message}`);
+      this.logger.error(
+        `Failed to process booking answers for order ${order.id}: ${error.message}`
+      );
       throw error;
     }
   }
 
-  private async cleanupRedisKeys(order: Order, bookingAnswerKey: string): Promise<void> {
+  private async cleanupRedisKeys(
+    order: Order,
+    bookingAnswerKey: string
+  ): Promise<void> {
     try {
       this.logger.debug(`Cleaning up Redis keys for order ${order.id}`);
       await Promise.all([
         this.redisService.del(getBookingKey(order.showId, order.bookingCode)),
-        this.redisService.del(getBookingCleanupKey(order.showId, order.bookingCode)),
+        this.redisService.del(
+          getBookingCleanupKey(order.showId, order.bookingCode)
+        ),
         this.redisService.del(bookingAnswerKey),
       ]);
-      this.logger.debug('Successfully cleaned up Redis keys');
+      this.logger.debug("Successfully cleaned up Redis keys");
     } catch (error) {
-      this.logger.error(`Failed to cleanup Redis keys for order ${order.id}: ${error.message}`);
+      this.logger.error(
+        `Failed to cleanup Redis keys for order ${order.id}: ${error.message}`
+      );
       throw error;
     }
   }
 
-  async completeOrderPayment(orderId: number, paymentData: OrderPaymentData): Promise<void> {
+  async completeOrderPayment(
+    orderId: number,
+    paymentData: OrderPaymentData
+  ): Promise<void> {
     this.logger.log(`Starting payment completion for order ${orderId}`);
 
     try {
@@ -209,48 +234,53 @@ export class OrdersService {
         this.logger.debug(`Fetching order ${orderId} with items and attendees`);
         const order = await manager.findOneOrFail(Order, {
           where: { id: orderId },
-          relations: ['items'],
+          relations: ["items"],
         });
 
         // 2. Update order payment status
-        this.logger.debug('Updating order payment status');
+        this.logger.debug("Updating order payment status");
         await this.updateOrderPaymentStatus(order, paymentData);
 
         // 3. Handle seats and ticket quantities
-        this.logger.debug('Processing seats and tickets');
+        this.logger.debug("Processing seats and tickets");
         await this.handleSeatsAndTickets(manager, order.items);
 
         // 4. Process booking answers if they exist
-        const bookingAnswerKey = getBookingAnswerKey(order.showId, order.bookingCode);
+        const bookingAnswerKey = getBookingAnswerKey(
+          order.showId,
+          order.bookingCode
+        );
         const bookingAnswerStr = await this.redisService.get(bookingAnswerKey);
 
         if (bookingAnswerStr) {
-          this.logger.debug('Found booking answers, processing them');
+          this.logger.debug("Found booking answers, processing them");
           const bookingAnswers = JSON.parse(bookingAnswerStr);
           await this.processBookingAnswers(manager, order, bookingAnswers);
         } else {
-          this.logger.debug('No booking answers found to process');
+          this.logger.debug("No booking answers found to process");
         }
 
         // 5. Increment event statistics
         await this.eventStatisticsService.updateStatistics(order, manager);
 
         // 6. Cleanup Redis keys
-        this.logger.debug('Cleaning up Redis keys');
+        this.logger.debug("Cleaning up Redis keys");
         await this.cleanupRedisKeys(order, bookingAnswerKey);
 
         this.logger.log(`Successfully completed payment for order ${orderId}`);
       });
 
-      const finalOrder = await this.dataSource.createQueryBuilder(Order, 'order')
-        .leftJoinAndSelect('order.attendees', 'attendees')
-        .leftJoinAndSelect('order.items', 'items')
-        .where('order.id = :orderId', { orderId })
+      const finalOrder = await this.dataSource
+        .createQueryBuilder(Order, "order")
+        .leftJoinAndSelect("order.attendees", "attendees")
+        .leftJoinAndSelect("order.items", "items")
+        .where("order.id = :orderId", { orderId })
         .getOneOrFail();
 
       //5. Get event info from raw query since Event entity is not available
-      this.logger.debug('Fetching event details for confirmation email');
-      const [eventInfo] = await this.dataSource.query(`
+      this.logger.debug("Fetching event details for confirmation email");
+      const [eventInfo] = await this.dataSource.query(
+        `
         SELECT 
           id,
           event_name as "eventName",
@@ -266,16 +296,21 @@ export class OrdersService {
           updated_at as "updatedAt"
         FROM events 
         WHERE id = $1
-      `, [finalOrder.eventId]);
+      `,
+        [finalOrder.eventId]
+      );
 
       if (!eventInfo) {
         throw new Error(`Event not found for order ${orderId}`);
       }
 
-      this.logger.debug('Sending confirmation email');
+      this.logger.debug("Sending confirmation email");
       await this.emailService.sendConfirmation(finalOrder, eventInfo);
     } catch (error) {
-      this.logger.error(`Failed to complete payment for order ${orderId}: ${error.message}`, error.stack);
+      this.logger.error(
+        `Failed to complete payment for order ${orderId}: ${error.message}`,
+        error.stack
+      );
       throw error;
     }
   }
