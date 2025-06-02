@@ -209,6 +209,8 @@ export class BookingsService {
       }
     );
 
+    console.log("items", JSON.stringify(items, null, 2));
+
     // 5. Update seat availability cache
     const reservedSeatIds = items.map((i) => i.seatId).filter((id) => !!id);
     await this.seatService.updateShowSeatAvailabilityCache(
@@ -216,7 +218,6 @@ export class BookingsService {
       reservedSeatIds
     );
 
-    console.log(JSON.stringify(items, null, 2));
     // 6. Build and persist booking payload + cleanup key
     const bookingData = {
       eventId: order.eventId,
@@ -406,7 +407,11 @@ export class BookingsService {
         };
       }
 
-      const discountAmount = this.calculateDiscount(voucher, booking);
+      const discountAmount = this.calculateDiscount(
+        voucher,
+        booking,
+        showConfig
+      );
 
       await this.orderRepository.update(
         { bookingCode: booking.bookingCode },

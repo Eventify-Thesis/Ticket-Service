@@ -1,9 +1,9 @@
-import { Injectable } from '@nestjs/common';
-import { DataSource } from 'typeorm';
-import Stripe from 'stripe';
-import { RedisService } from 'src/shared/redis/redis.service';
-import { OrderStatus } from 'src/bookings/entities/order.entity';
-import { OrdersService } from './order.service';
+import { Injectable } from "@nestjs/common";
+import { DataSource } from "typeorm";
+import Stripe from "stripe";
+import { RedisService } from "src/shared/redis/redis.service";
+import { OrderStatus } from "src/bookings/entities/order.entity";
+import { OrdersService } from "./order.service";
 
 interface PaymentSuccessPayload {
   orderId: number;
@@ -28,21 +28,23 @@ export class PaymentsService {
   constructor(
     private readonly ordersService: OrdersService,
     dataSource: DataSource,
-    redisService: RedisService,
+    redisService: RedisService
   ) {
     this.stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
     this.dataSource = dataSource;
     this.redisService = redisService;
   }
 
-  async createPaymentIntent(orderId: number): Promise<{ clientSecret: string; amount: number }> {
+  async createPaymentIntent(
+    orderId: number
+  ): Promise<{ clientSecret: string; amount: number }> {
     const order = await this.ordersService.getOrder(orderId);
 
     const amount = Math.round(order.totalAmount);
 
     const pi = await this.stripe.paymentIntents.create({
       amount,
-      currency: 'vnd',
+      currency: "vnd",
       automatic_payment_methods: { enabled: true },
       metadata: { orderId },
     });
@@ -56,7 +58,7 @@ export class PaymentsService {
   async handleSuccessfulPayment(payload: PaymentSuccessPayload): Promise<void> {
     await this.ordersService.completeOrderPayment(payload.orderId, {
       paymentIntentId: payload.paymentIntentId,
-      paidAt: payload.paidAt
+      paidAt: payload.paidAt,
     });
   }
 
