@@ -14,17 +14,18 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.init();
 
+  const configService = app.get(ConfigService);
+
   app.connectMicroservice<MicroserviceOptions>({
-    transport: Transport.TCP,
+    transport: Transport.REDIS,
     options: {
-      host: "127.0.0.1",
-      port: 8082,
+      host: configService.get("REDIS_HOST") || "localhost",
+      port: configService.get("REDIS_PORT") || 6379,
     },
   });
 
   await app.startAllMicroservices();
 
-  const configService = app.get(ConfigService);
   const logger = new Logger("Bootstrap");
 
   // Use Pino Logger
