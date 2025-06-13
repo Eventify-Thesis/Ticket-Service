@@ -55,6 +55,14 @@ async function bootstrap() {
         },
       })
     );
+
+    app.enableCors({
+      origin: "*",
+      methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
+      credentials: true,
+    });
+
+    await app.listen(configService.get("PORT") || 8081);
   } catch (error) {
     new Logger("Bootstrap").error("Failed to start application", error);
     process.exit(1);
