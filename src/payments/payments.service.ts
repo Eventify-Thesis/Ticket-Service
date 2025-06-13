@@ -1,4 +1,5 @@
 import { Injectable } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 import { DataSource } from "typeorm";
 import Stripe from "stripe";
 import { RedisService } from "src/shared/redis/redis.service";
@@ -26,11 +27,16 @@ export class PaymentsService {
   private readonly redisService: RedisService;
 
   constructor(
+    private readonly configService: ConfigService,
     private readonly ordersService: OrdersService,
     dataSource: DataSource,
     redisService: RedisService
   ) {
-    this.stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+    const stripeSecretKey = this.configService.get<string>("STRIPE_SECRET_KEY");
+    if (!stripeSecretKey) {
+      throw new Error("STRIPE_SECRET_KEY is not configured");
+    }
+    this.stripe = new Stripe(stripeSecretKey);
     this.dataSource = dataSource;
     this.redisService = redisService;
   }

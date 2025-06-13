@@ -1,6 +1,12 @@
-import { Injectable, OnModuleInit, OnModuleDestroy, Logger } from "@nestjs/common";
+import {
+  Injectable,
+  OnModuleInit,
+  OnModuleDestroy,
+  Logger,
+} from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { EventEmitter2 } from "@nestjs/event-emitter";
+import { Cron, CronExpression } from "@nestjs/schedule";
 import Redis from "ioredis";
 
 @Injectable()
@@ -8,6 +14,7 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   private readonly client: Redis;
   private subscriber: Redis;
   private readonly logger = new Logger(RedisService.name);
+  private keyspaceNotificationsEnabled = false;
 
   constructor(
     private readonly configService: ConfigService,
@@ -19,7 +26,7 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     this.logger.log(`→ Client connecting to Redis @ ${host}:${port}`);
 
     this.client = new Redis({ host, port });
-    this.client.on("error", err => this.logger.error("Client Error:", err));
+    this.client.on("error", (err) => this.logger.error("Client Error:", err));
     this.client.on("connect", () => this.logger.log("Client CONNECTED"));
     this.client.on("ready", () => this.logger.log("Client READY"));
     this.client.on("close", () => this.logger.log("Client CLOSED"));
@@ -33,80 +40,119 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     this.logger.log(`Subscriber connecting to Redis @ ${host}:${port}`);
 
     this.subscriber = new Redis({ host, port });
-    this.subscriber.on("error", err => this.logger.error("Subscriber Error:", err));
-    this.subscriber.on("connect", () => this.logger.log("Subscriber CONNECTED"));
+    this.subscriber.on("error", (err) =>
+      this.logger.error("Subscriber Error:", err)
+    );
+    this.subscriber.on("connect", () =>
+      this.logger.log("Subscriber CONNECTED")
+    );
 
-    await new Promise<void>(resolve => {
+    await new Promise<void>((resolve) => {
       this.subscriber.once("ready", () => {
         this.logger.log("Subscriber READY");
         resolve();
       });
     });
 
-    // Turn on expired‑key notifications
-    const setReply = await this.subscriber.config(
-      "SET",
-      "notify-keyspace-events",
-      "Ex"
-    );
-    this.logger.log("CONFIG SET notify-keyspace-events", setReply);
+    // Try to turn on expired‑key notifications (optional for managed Redis)
+    try {
+      const setReply = await this.subscriber.config(
+        "SET",
+        "notify-keyspace-events",
+        "Ex"
+      );
+      this.logger.log("CONFIG SET notify-keyspace-events", setReply);
 
-    const getReply = await this.subscriber.config(
-      "GET",
-      "notify-keyspace-events"
-    );
-    this.logger.log(
-      "CONFIG GET notify-keyspace-events",
-      getReply[1]
-    );
+      const getReply = await this.subscriber.config(
+        "GET",
+        "notify-keyspace-events"
+      );
+      this.logger.log("CONFIG GET notify-keyspace-events", getReply[1]);
 
-    // Subscribe to expired events on DB 0
-    const channel = "__keyevent@0__:expired";
-    await this.subscriber.subscribe(channel);
-    this.logger.log(`SUBSCRIBED to ${channel}`);
+      // Subscribe to expired events on DB 0
+      const channel = "__keyevent@0__:expired";
+      await this.subscriber.subscribe(channel);
+      this.logger.log(`SUBSCRIBED to ${channel}`);
+      this.keyspaceNotificationsEnabled = true;
 
-    // Handle every expiration
-    this.subscriber.on(
-      "message",
-      async (chan: string, key: string) => {
+      // Handle every expiration
+      this.subscriber.on("message", async (chan: string, key: string) => {
         this.logger.log(`message: channel=${chan}  key=${key}`);
+        await this.handleExpiredKey(key);
+      });
+    } catch (error) {
+      this.logger.warn(
+        "Could not configure keyspace notifications (managed Redis may not allow CONFIG commands):",
+        error.message
+      );
+      this.logger.log(
+        "Continuing without keyspace notifications - using scheduled cleanup instead"
+      );
+      this.keyspaceNotificationsEnabled = false;
+    }
+  }
 
-        if (!key.startsWith("booking:cleanup:")) return;
+  // Scheduled cleanup job that runs every minute when keyspace notifications are not available
+  @Cron(CronExpression.EVERY_MINUTE)
+  async handleScheduledCleanup() {
+    if (this.keyspaceNotificationsEnabled) {
+      // Skip if keyspace notifications are working
+      return;
+    }
 
-        this.logger.log(`booking:cleanup expired → ${key}`);
-        try {
-          const [, , showId, bookingCode] = key.split(":");
-          const dataKey = `booking:${showId}:${bookingCode}`;
-          const raw = await this.client.get(dataKey);
-          if (!raw) {
-            this.logger.warn(`No data at ${dataKey}`);
-            return;
-          }
-          const { items } = JSON.parse(raw);
-          const seats = items
-            .filter(item => item.seatId)
-            .map(item => item.seatId);
-          for (const item of items) {
-            const { id, quantity } = item;
-            const tk = `ticket-type:lock:${id}`;
-            await this.client.incrby(tk, quantity);
-            this.logger.log(`Restored ${quantity} to ${tk}`);
-          }
-          if (seats?.length) {
-            this.eventEmitter.emit("booking.expired", {
-              showId,
-              seats: seats.map(id => ({ id, sectionId: "" })),
-            });
-            this.logger.log(`Emitted booking.expired for ${seats.length} seats`);
-          }
-          await this.client.del(key);
-          await this.client.del(dataKey);
-          this.logger.log(`Cleaned up keys ${key} & ${dataKey}`);
-        } catch (err) {
-          this.logger.error("Cleanup handler error:", err);
+    try {
+      // Find all booking cleanup keys
+      const pattern = "booking:cleanup:*";
+      const keys = await this.client.keys(pattern);
+
+      for (const key of keys) {
+        const ttl = await this.client.ttl(key);
+        if (ttl <= 0) {
+          // Key has expired, handle cleanup
+          this.logger.log(`Scheduled cleanup: handling expired key ${key}`);
+          await this.handleExpiredKey(key);
         }
       }
-    );
+    } catch (error) {
+      this.logger.error("Error in scheduled cleanup:", error);
+    }
+  }
+
+  private async handleExpiredKey(key: string) {
+    if (!key.startsWith("booking:cleanup:")) return;
+
+    this.logger.log(`booking:cleanup expired → ${key}`);
+    try {
+      const [, , showId, bookingCode] = key.split(":");
+      const dataKey = `booking:${showId}:${bookingCode}`;
+      const raw = await this.client.get(dataKey);
+      if (!raw) {
+        this.logger.warn(`No data at ${dataKey}`);
+        return;
+      }
+      const { items } = JSON.parse(raw);
+      const seats = items
+        .filter((item) => item.seatId)
+        .map((item) => item.seatId);
+      for (const item of items) {
+        const { id, quantity } = item;
+        const tk = `ticket-type:lock:${id}`;
+        await this.client.incrby(tk, quantity);
+        this.logger.log(`Restored ${quantity} to ${tk}`);
+      }
+      if (seats?.length) {
+        this.eventEmitter.emit("booking.expired", {
+          showId,
+          seats: seats.map((id) => ({ id, sectionId: "" })),
+        });
+        this.logger.log(`Emitted booking.expired for ${seats.length} seats`);
+      }
+      await this.client.del(key);
+      await this.client.del(dataKey);
+      this.logger.log(`Cleaned up keys ${key} & ${dataKey}`);
+    } catch (err) {
+      this.logger.error("Cleanup handler error:", err);
+    }
   }
 
   async onModuleDestroy() {
@@ -226,7 +272,10 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     try {
       return await this.client.hset(key, field, value);
     } catch (error) {
-      this.logger.error(`Error setting hash field ${field} for key ${key}:`, error);
+      this.logger.error(
+        `Error setting hash field ${field} for key ${key}:`,
+        error
+      );
       throw error;
     }
   }
@@ -235,7 +284,10 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     try {
       return await this.client.hget(key, field);
     } catch (error) {
-      this.logger.error(`Error getting hash field ${field} for key ${key}:`, error);
+      this.logger.error(
+        `Error getting hash field ${field} for key ${key}:`,
+        error
+      );
       throw error;
     }
   }

@@ -9,19 +9,20 @@ import { RedisModule } from "./shared/redis/redis.module";
 import { TerminusModule } from "@nestjs/terminus";
 import { SeatModule } from "./seat/seat.module";
 import { TypeOrmModule } from "@nestjs/typeorm";
-import { BookingsModule } from './bookings/bookings.module';
-import { PaymentsModule } from './payments/payments.module';
-import { MailerModule } from '@nestjs-modules/mailer';
-import { join } from 'path';
-import { HandlebarsAdapter } from '@nestjs-modules/mailer/dist/adapters/handlebars.adapter';
-import { EmailModule } from './email/email.module';
-import * as handlebarsHelpers from 'handlebars-helpers';
+import { BookingsModule } from "./bookings/bookings.module";
+import { PaymentsModule } from "./payments/payments.module";
+import { MailerModule } from "@nestjs-modules/mailer";
+import { join } from "path";
+import { HandlebarsAdapter } from "@nestjs-modules/mailer/dist/adapters/handlebars.adapter";
+import { EmailModule } from "./email/email.module";
+import * as handlebarsHelpers from "handlebars-helpers";
 
 @Module({
   imports: [
     // Configuration
     ConfigModule.forRoot({
       isGlobal: true,
+      ignoreEnvFile: false,
     }),
 
     // Logger
@@ -65,18 +66,18 @@ import * as handlebarsHelpers from 'handlebars-helpers';
       inject: [ConfigService],
       useFactory: (cfg: ConfigService) => ({
         transport: {
-          host: 'smtp.sendgrid.net',
+          host: "smtp.sendgrid.net",
           port: 587,
           auth: {
-            user: 'apikey',
-            pass: cfg.get('SENDGRID_API_KEY'),
+            user: "apikey",
+            pass: cfg.get("SENDGRID_API_KEY"),
           },
         },
         defaults: {
-          from: cfg.get('MAIL_FROM'),
+          from: cfg.get("MAIL_FROM"),
         },
         template: {
-          dir: join(__dirname, 'templates', 'email'),
+          dir: join(__dirname, "templates", "email"),
           adapter: new HandlebarsAdapter({ ...handlebarsHelpers }), // or your preferred template engine
           options: {
             strict: true,
@@ -108,4 +109,4 @@ import * as handlebarsHelpers from 'handlebars-helpers';
     EmailModule,
   ],
 })
-export class AppModule { }
+export class AppModule {}

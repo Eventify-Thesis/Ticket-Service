@@ -10,72 +10,55 @@ import { AppModule } from "./app.module";
 import { MicroserviceOptions, Transport } from "@nestjs/microservices";
 
 async function bootstrap() {
-  // Create the application instance with specific configurations
-  const app = await NestFactory.create(AppModule);
-  app.init();
+  try {
+    // Create the application instance with specific configurations
+    const app = await NestFactory.create(AppModule);
 
-  const configService = app.get(ConfigService);
+    const configService = app.get(ConfigService);
 
-  app.connectMicroservice<MicroserviceOptions>({
-    transport: Transport.REDIS,
-    options: {
-      host: configService.get("REDIS_HOST") || "localhost",
-      port: configService.get("REDIS_PORT") || 6379,
-    },
-  });
-
-  await app.startAllMicroservices();
-
-  const logger = new Logger("Bootstrap");
-
-  // Use Pino Logger
-  app.useLogger(app.get(PinoLogger));
-
-  // Security middleware
-  app.use(helmet());
-
-  app.use(compression());
-
-  // Rate limiting
-  app.use(
-    rateLimit({
-      windowMs: configService.get("rateLimit.ttl") * 1000,
-      max: configService.get("rateLimit.limit"),
-    })
-  );
-
-  // Global pipes
-  app.useGlobalPipes(
-    new ValidationPipe({
-      whitelist: true,
-      transform: true,
-      forbidNonWhitelisted: true,
-      transformOptions: {
-        enableImplicitConversion: true,
+    app.connectMicroservice<MicroserviceOptions>({
+      transport: Transport.REDIS,
+      options: {
+        host: configService.get("REDIS_HOST") || "localhost",
+        port: configService.get("REDIS_PORT") || 6379,
       },
-    })
-  );
+    });
 
-  // CORS configuration
-  app.enableCors({
-    origin: configService.get("app.corsOrigins", "*"),
-    methods: "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS",
-    credentials: true,
-  });
+    await app.startAllMicroservices();
 
-  // Swagger documentation
-  const config = new DocumentBuilder()
-    .setTitle("Ticket Service API")
-    .setDescription("High-performance ticket booking service for Eventify")
-    .setVersion("1.0")
-    .addBearerAuth()
-    .build();
+    const logger = new Logger("Bootstrap");
 
-  const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup("api/docs", app, document);
+    // Use Pino Logger
+    app.useLogger(app.get(PinoLogger));
+
+    // Security middleware
+    app.use(helmet());
+
+    app.use(compression());
+
+    // Rate limiting
+    app.use(
+      rateLimit({
+        windowMs: configService.get("rateLimit.ttl") * 1000,
+        max: configService.get("rateLimit.limit"),
+      })
+    );
+
+    // Global pipes
+    app.useGlobalPipes(
+      new ValidationPipe({
+        whitelist: true,
+        transform: true,
+        forbidNonWhitelisted: true,
+        transformOptions: {
+          enableImplicitConversion: true,
+        },
+      })
+    );
+  } catch (error) {
+    new Logger("Bootstrap").error("Failed to start application", error);
+    process.exit(1);
+  }
 }
 
-bootstrap().catch((error) => {
-  new Logger("Bootstrap").error("Failed to start application", error);
-  process.exit(1);
-});
+bootstrap();

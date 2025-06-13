@@ -1,5 +1,5 @@
-import { Injectable } from '@nestjs/common';
-import { MailerService } from '@nestjs-modules/mailer';
+import { Injectable } from "@nestjs/common";
+import { MailerService } from "@nestjs-modules/mailer";
 
 interface EventInfo {
   eventName: string;
@@ -33,10 +33,14 @@ interface Order {
   attendees?: Attendee[];
 }
 
-export const generateTicketEmail = (attendees: Attendee[], event: EventInfo): string => {
-  const ticketsList = attendees.map((attendee) => {
-    const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(attendee.publicId)}`;
-    return `
+export const generateTicketEmail = (
+  attendees: Attendee[],
+  event: EventInfo
+): string => {
+  const ticketsList = attendees
+    .map((attendee) => {
+      const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(attendee.publicId)}`;
+      return `
       <div style="margin-bottom: 30px; padding: 20px; background-color: #f8f9fa; border-radius: 8px; border: 1px solid #e9ecef;">
         <h3 style="margin: 0 0 15px 0; color: #1a73e8;">${attendee.firstName} ${attendee.lastName}</h3>
         <p style="margin: 5px 0; color: #666;">Ticket ID: ${attendee.publicId}</p>
@@ -45,7 +49,8 @@ export const generateTicketEmail = (attendees: Attendee[], event: EventInfo): st
         </div>
       </div>
     `;
-  }).join('');
+    })
+    .join("");
 
   return `
     <!DOCTYPE html>
@@ -83,20 +88,23 @@ export const generateOrderConfirmationEmail = (order: any, event: any) => {
       <tr>
         <td style="padding: 12px; border-bottom: 1px solid #e4e4e4;">${item.name}</td>
         <td style="padding: 12px; border-bottom: 1px solid #e4e4e4; text-align: center;">${item.quantity}</td>
-        <td style="padding: 12px; border-bottom: 1px solid #e4e4e4; text-align: right;">${Math.round(item.price).toLocaleString('vi-VN')} VND</td>
+        <td style="padding: 12px; border-bottom: 1px solid #e4e4e4; text-align: right;">${Math.round(item.price).toLocaleString("vi-VN")} VND</td>
       </tr>
     `
     )
-    .join('');
+    .join("");
 
-  const attendeesList = order.attendees?.map(
-    (attendee: any) => `
+  const attendeesList =
+    order.attendees
+      ?.map(
+        (attendee: any) => `
     <div style="margin-bottom: 10px; padding: 10px; background-color: #f8f9fa; border-radius: 5px;">
       <p style="margin: 5px 0;"><strong>${attendee.firstName} ${attendee.lastName}</strong></p>
       <p style="margin: 5px 0; color: #666;">${attendee.email}</p>
     </div>
   `
-  ).join('') || '';
+      )
+      .join("") || "";
 
   return `
     <!DOCTYPE html>
@@ -125,13 +133,15 @@ export const generateOrderConfirmationEmail = (order: any, event: any) => {
             
             <div style="background-color: #f8f9fa; padding: 25px; margin: 25px 0; border-radius: 8px; border: 1px solid #e9ecef;">
               <h3 style="color: #1a73e8; margin-top: 0; margin-bottom: 20px; font-size: 20px;">Order Summary</h3>
-              <p><strong>Order Date:</strong> ${new Date(order.createdAt).toLocaleDateString('vi-VN', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  })}</p>
+              <p><strong>Order Date:</strong> ${new Date(
+                order.createdAt
+              ).toLocaleDateString("vi-VN", {
+                year: "numeric",
+                month: "long",
+                day: "numeric",
+                hour: "2-digit",
+                minute: "2-digit",
+              })}</p>
               
               <table style="width: 100%; border-collapse: collapse; margin-top: 15px; background-color: #ffffff; border-radius: 6px; overflow: hidden;">
                 <thead>
@@ -147,17 +157,21 @@ export const generateOrderConfirmationEmail = (order: any, event: any) => {
                 <tfoot style="background-color: #f8f9fa;">
                   <tr>
                     <td colspan="2" style="padding: 12px; text-align: right;"><strong>Subtotal:</strong></td>
-                    <td style="padding: 12px; text-align: right;"><strong>${Math.round(order.subtotalAmount).toLocaleString('vi-VN')} VND</strong></td>
+                    <td style="padding: 12px; text-align: right;"><strong>${Math.round(order.subtotalAmount).toLocaleString("vi-VN")} VND</strong></td>
                   </tr>
-                  ${order.platformDiscountAmount ? `
+                  ${
+                    order.platformDiscountAmount
+                      ? `
                   <tr>
                     <td colspan="2" style="padding: 12px; text-align: right; color: #2e7d32;"><strong>Discount:</strong></td>
-                    <td style="padding: 12px; text-align: right; color: #2e7d32;"><strong>-${Math.round(order.platformDiscountAmount).toLocaleString('vi-VN')} VND</strong></td>
+                    <td style="padding: 12px; text-align: right; color: #2e7d32;"><strong>-${Math.round(order.platformDiscountAmount).toLocaleString("vi-VN")} VND</strong></td>
                   </tr>
-                  ` : ''}
+                  `
+                      : ""
+                  }
                   <tr style="background-color: #e3f2fd;">
                     <td colspan="2" style="padding: 12px; text-align: right;"><strong>Total Paid:</strong></td>
-                    <td style="padding: 12px; text-align: right;"><strong>${Math.round(order.totalAmount).toLocaleString('vi-VN')} VND</strong></td>
+                    <td style="padding: 12px; text-align: right;"><strong>${Math.round(order.totalAmount).toLocaleString("vi-VN")} VND</strong></td>
                   </tr>
                 </tfoot>
               </table>
@@ -170,12 +184,16 @@ export const generateOrderConfirmationEmail = (order: any, event: any) => {
               <p style="margin: 10px 0;"><strong>Address:</strong> ${event.street}</p>
             </div>
 
-            ${attendeesList ? `
+            ${
+              attendeesList
+                ? `
             <div style="background-color: #f3e5f5; padding: 25px; margin: 25px 0; border-radius: 8px; border: 1px solid #e1bee7;">
               <h3 style="color: #6a1b9a; margin-top: 0; margin-bottom: 20px; font-size: 20px;">Attendee Information</h3>
               ${attendeesList}
             </div>
-            ` : ''}
+            `
+                : ""
+            }
 
             <div style="background-color: #e3f2fd; padding: 20px; margin: 25px 0; border-radius: 8px; text-align: center;">
               <p style="margin: 0; color: #1565c0;">
@@ -194,14 +212,13 @@ export const generateOrderConfirmationEmail = (order: any, event: any) => {
   `;
 };
 
-
 @Injectable()
 export class EmailService {
-  constructor(private readonly mailer: MailerService) { }
+  constructor(private readonly mailer: MailerService) {}
 
   async sendConfirmation(order: any, event: any) {
     if (!order?.email) {
-      throw new Error('Order email is required');
+      throw new Error("Order email is required");
     }
 
     // Send confirmation to order owner
@@ -218,15 +235,18 @@ export class EmailService {
     }
 
     // Group attendees by email
-    const attendeesByEmail = order.attendees.reduce((acc: Record<string, any[]>, attendee) => {
-      if (!attendee?.email) return acc;
+    const attendeesByEmail = order.attendees.reduce(
+      (acc: Record<string, any[]>, attendee) => {
+        if (!attendee?.email) return acc;
 
-      if (!acc[attendee.email]) {
-        acc[attendee.email] = [];
-      }
-      acc[attendee.email].push(attendee);
-      return acc;
-    }, {});
+        if (!acc[attendee.email]) {
+          acc[attendee.email] = [];
+        }
+        acc[attendee.email].push(attendee);
+        return acc;
+      },
+      {}
+    );
 
     // Send tickets to each unique attendee email
     for (const [email, attendees] of Object.entries<any[]>(attendeesByEmail)) {
