@@ -14,7 +14,7 @@ import { QuestionAnswerDto } from "./dto/question-answer.dto";
 
 @Controller()
 export class BookingsController {
-  constructor(private readonly bookingsService: BookingsService) { }
+  constructor(private readonly bookingsService: BookingsService) {}
 
   @MessagePattern("submitTicketInfo")
   async create(@Payload() submitTicketInfoDto: SubmitTicketInfoDto) {
@@ -23,40 +23,55 @@ export class BookingsController {
     } catch (error) {
       return {
         error: error.toString(),
-      }
+      };
     }
   }
 
   @MessagePattern("getBookingStatus")
-  async getBookingStatus(@Payload() booking: { showId: number, bookingCode: string }) {
+  async getBookingStatus(
+    @Payload() booking: { showId: number; bookingCode: string }
+  ) {
     try {
-      return await this.bookingsService.getBookingStatus(booking.showId, booking.bookingCode);
+      return await this.bookingsService.getBookingStatus(
+        booking.showId,
+        booking.bookingCode
+      );
     } catch (error) {
       return {
         error: error.toString(),
-      }
+      };
     }
   }
 
   @MessagePattern("cancelBooking")
-  async cancelBooking(@Payload() booking: { showId: number, bookingCode: string }) {
+  async cancelBooking(
+    @Payload() booking: { showId: number; bookingCode: string }
+  ) {
     try {
-      return await this.bookingsService.cancelBooking(booking.showId, booking.bookingCode);
+      return await this.bookingsService.cancelBooking(
+        booking.showId,
+        booking.bookingCode
+      );
     } catch (error) {
       return {
         error: error.toString(),
-      }
+      };
     }
   }
 
   @MessagePattern("getFormAnswers")
-  async getFormAnswers(@Payload() booking: { showId: number, bookingId: string }) {
+  async getFormAnswers(
+    @Payload() booking: { showId: number; bookingId: string }
+  ) {
     try {
-      return await this.bookingsService.getFormAnswers(booking.showId, booking.bookingId);
+      return await this.bookingsService.getFormAnswers(
+        booking.showId,
+        booking.bookingId
+      );
     } catch (error) {
       return {
         error: error.toString(),
-      }
+      };
     }
   }
 
@@ -68,17 +83,42 @@ export class BookingsController {
     } catch (error) {
       return {
         error: error.toString(),
-      }
+      };
     }
   }
 
-  @MessagePattern('get_available_vouchers')
-  async getAvailableVouchers({ eventId, showId }: { eventId: number, showId: number }) {
+  @MessagePattern("get_available_vouchers")
+  async getAvailableVouchers({
+    eventId,
+    showId,
+  }: {
+    eventId: number;
+    showId: number;
+  }) {
     return this.bookingsService.getAvailableVouchers(eventId, showId);
   }
 
-  @MessagePattern('apply_voucher')
-  async applyVoucher({ showId, bookingCode, voucherCode }: { showId: number, bookingCode: string; voucherCode: string }) {
+  @MessagePattern("apply_voucher")
+  async applyVoucher({
+    showId,
+    bookingCode,
+    voucherCode,
+  }: {
+    showId: number;
+    bookingCode: string;
+    voucherCode: string;
+  }) {
     return this.bookingsService.applyVoucher(showId, bookingCode, voucherCode);
+  }
+
+  @MessagePattern("completeFreeOrder")
+  async completeFreeOrder(@Payload() payload: { orderId: number }) {
+    try {
+      return await this.bookingsService.completeFreeOrder(payload.orderId);
+    } catch (error) {
+      return {
+        error: error.toString(),
+      };
+    }
   }
 }

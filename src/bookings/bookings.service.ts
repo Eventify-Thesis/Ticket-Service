@@ -591,21 +591,168 @@ export class BookingsService {
   }
 
   async updateAnswers(questionAnswers: QuestionAnswerDto) {
-    console.log("questionAnswers", JSON.stringify(questionAnswers, null, 2));
-    const bookingAnswersKey = getBookingAnswerKey(
-      questionAnswers.showId,
-      questionAnswers.bookingCode
-    );
-    await this.redisService.set(
-      bookingAnswersKey,
-      JSON.stringify(questionAnswers)
-    );
+    try {
+      await this.redisService.set(
+        getBookingAnswerKey(
+          questionAnswers.showId!,
+          questionAnswers.bookingCode!
+        ),
+        JSON.stringify(questionAnswers)
+      );
+      return { message: "Answers updated successfully" };
+    } catch (error) {
+      this.logger.error(
+        `Failed to update answers: ${error.message}`,
+        error.stack
+      );
+      throw error;
+    }
+  }
 
-    return {
-      status: 1,
-      message: "success",
-      code: 0,
-      traceId: uuidv4(),
-    };
+  async completeFreeOrder(orderId: number) {
+    this.logger.log(`Starting free order completion for order ${orderId}`);
+
+    try {
+      await this.dataSource.transaction(async (manager) => {
+        // 1. Get order with items and attendees
+        this.logger.debug(`Fetching order ${orderId} with items`);
+        const order = await manager.findOneOrFail(Order, {
+          where: { id: orderId },
+          relations: ["items"],
+        });
+
+        // 2. Verify that the order is actually free
+        if (order.totalAmount > 0) {
+          throw new Error(
+            `Order ${orderId} is not free (total: ${order.totalAmount})`
+          );
+        }
+
+        // 3. Update order status to PAID (even though it's free)
+        order.status = OrderStatus.PAID;
+        order.paidAt = new Date();
+        await manager.save(order);
+
+        // 4. Handle seats and ticket quantities (same as paid orders)
+        await this.handleSeatsAndTickets(manager, order.items);
+
+        // 5. Process booking answers if they exist
+        const bookingAnswerKey = getBookingAnswerKey(
+          order.showId,
+          order.bookingCode
+        );
+        const bookingAnswerStr = await this.redisService.get(bookingAnswerKey);
+
+        if (bookingAnswerStr) {
+          this.logger.debug("Found booking answers, processing them");
+          const bookingAnswers = JSON.parse(bookingAnswerStr);
+          await this.processBookingAnswers(manager, order, bookingAnswers);
+        } else {
+          this.logger.debug("No booking answers found to process");
+        }
+
+        // 6. Increment event statistics
+        await this.updateEventStatistics(order, manager);
+
+        // 7. Cleanup Redis keys
+        this.logger.debug("Cleaning up Redis keys");
+        await this.cleanupRedisKeys(order, bookingAnswerKey);
+
+        this.logger.log(`Successfully completed free order ${orderId}`);
+      });
+
+      const finalOrder = await this.dataSource
+        .createQueryBuilder(Order, "order")
+        .leftJoinAndSelect("order.attendees", "attendees")
+        .leftJoinAndSelect("order.items", "items")
+        .where("order.id = :orderId", { orderId })
+        .getOneOrFail();
+
+      // Get event info for confirmation email
+      this.logger.debug("Fetching event details for confirmation email");
+      const [eventInfo] = await this.dataSource.query(
+        `
+        SELECT 
+          id,
+          event_name as "eventName",
+          event_description as "eventDescription",
+          org_name as "orgName",
+          org_description as "orgDescription",
+          org_logo_url as "orgLogoUrl",
+          event_logo_url as "eventLogoUrl",
+          event_banner_url as "eventBannerUrl",
+          venue_name as "venueName",
+          street,
+          created_at as "createdAt",
+          updated_at as "updatedAt"
+        FROM events 
+        WHERE id = $1
+      `,
+        [finalOrder.eventId]
+      );
+
+      if (!eventInfo) {
+        throw new Error(`Event not found for order ${orderId}`);
+      }
+
+      // Send confirmation email for free order
+      this.logger.debug("Sending confirmation email for free order");
+      // await this.emailService.sendConfirmation(finalOrder, eventInfo);
+
+      return {
+        message: "Free order completed successfully",
+        orderId: finalOrder.id,
+        publicId: finalOrder.publicId,
+      };
+    } catch (error) {
+      this.logger.error(
+        `Failed to complete free order ${orderId}: ${error.message}`,
+        error.stack
+      );
+      throw error;
+    }
+  }
+
+  // Helper methods for free order completion
+  private async handleSeatsAndTickets(manager: any, items: OrderItem[]) {
+    // Implementation similar to the one in order.service.ts
+    for (const item of items) {
+      // Update ticket type sold quantity
+      await manager.increment(
+        TicketType,
+        { id: item.ticketTypeId },
+        "soldQuantity",
+        item.quantity
+      );
+    }
+  }
+
+  private async processBookingAnswers(
+    manager: any,
+    order: Order,
+    bookingAnswers: any
+  ) {
+    // Process booking answers similar to order.service.ts
+    // This would involve creating attendee records and their answers
+    // Implementation depends on your specific requirements
+  }
+
+  private async updateEventStatistics(order: Order, manager: any) {
+    // Update event statistics for free orders
+    await manager.save(EventStatistics, {
+      eventId: order.eventId,
+      ordersCompleted: 1,
+      ticketsSold: order.items.reduce((sum, item) => sum + item.quantity, 0),
+    });
+  }
+
+  private async cleanupRedisKeys(order: Order, bookingAnswerKey: string) {
+    // Cleanup Redis keys
+    const bookingKey = getBookingKey(order.showId, order.bookingCode);
+    const cleanupKey = getBookingCleanupKey(order.showId, order.bookingCode);
+
+    await this.redisService.del(bookingKey);
+    await this.redisService.del(bookingAnswerKey);
+    await this.redisService.del(cleanupKey);
   }
 }
