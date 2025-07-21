@@ -13,6 +13,7 @@ import { Attendee } from "src/payments/entities/attendees.entity";
 
 export enum OrderStatus {
   PENDING = "PENDING",
+  PROCESSING = "PROCESSING",
   PAID = "PAID",
   PAYMENT_FAILED = "PAYMENT_FAILED",
   CANCELLED = "CANCELLED",
@@ -101,6 +102,22 @@ export class Order {
 
   @Column({ name: "stripe_customer_id" })
   stripeCustomerId: string;
+
+  // New payment provider fields
+  @Column({ name: "payment_provider", default: "stripe" })
+  paymentProvider: string;
+
+  @Column({ name: "payment_provider_transaction_id", nullable: true })
+  paymentProviderTransactionId: string;
+
+  @Column({ name: "payment_provider_metadata", type: "text", nullable: true })
+  paymentProviderMetadata: string;
+
+  @Column({ name: "payment_redirect_url", nullable: true })
+  paymentRedirectUrl: string;
+
+  @Column({ name: "payment_qr_code", type: "text", nullable: true })
+  paymentQrCode: string;
 
   @Column({ name: "paid_at", type: "timestamp", nullable: true })
   paidAt: Date;

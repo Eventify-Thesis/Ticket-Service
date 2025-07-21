@@ -67,4 +67,35 @@ export class PaymentsController {
     await this.paymentsService.handleFailedPayment(payload);
     return { success: true };
   }
+
+  @MessagePattern("initiateVietnamesePayment")
+  async initiateVietnamesePayment(
+    @Payload()
+    payload: {
+      paymentIntentId: string;
+      paymentProvider: string;
+      amount: number;
+      currency: string;
+      orderId?: string;
+    }
+  ) {
+    const result =
+      await this.paymentsService.initiateVietnamesePayment(payload);
+    return result;
+  }
+
+  @MessagePattern("handleVietnamesePaymentSuccess")
+  async handleVietnamesePaymentSuccess(
+    @Payload()
+    payload: {
+      orderId: number;
+      paymentIntentId: string;
+      paymentProvider: string;
+      amount: number;
+      transactionId?: string;
+    }
+  ) {
+    await this.paymentsService.handleVietnamesePaymentSuccess(payload);
+    return { success: true };
+  }
 }
