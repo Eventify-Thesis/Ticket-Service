@@ -95,7 +95,6 @@ export class PaymentsController {
       transactionId?: string;
     }
   ) {
-    await this.paymentsService.handleVietnamesePaymentSuccess(payload);
-    return { success: true };
+    return await this.paymentsService.handleVietnamesePaymentSuccess(payload);
   }
 }

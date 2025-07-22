@@ -36,7 +36,10 @@ export class OrdersService {
 
   async getOrder(orderId: number): Promise<Order> {
     try {
-      const order = await this.orderRepository.findOneByOrFail({ id: orderId });
+      const order = await this.dataSource.createQueryBuilder(Order, "order")
+        .leftJoinAndSelect("order.items", "items")
+        .where("order.id = :orderId", { orderId })
+        .getOneOrFail();
       this.logger.debug(`Retrieved order ${orderId}`);
       return order;
     } catch (error) {

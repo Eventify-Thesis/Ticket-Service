@@ -172,7 +172,7 @@ export class PaymentsService {
     paymentProvider: string;
     amount: number;
     transactionId?: string;
-  }): Promise<void> {
+  }): Promise<any> {
     console.log("Handling Vietnamese payment success:", payload);
 
     try {
@@ -187,6 +187,14 @@ export class PaymentsService {
         paymentProvider: payload.paymentProvider,
         paymentIntentId: payload.paymentIntentId,
       });
+
+      const order = await this.ordersService.getOrder(payload.orderId);
+
+
+      return {
+        success: true,
+        order
+      };
     } catch (error) {
       console.error("Failed to handle Vietnamese payment success:", error);
       throw error;
